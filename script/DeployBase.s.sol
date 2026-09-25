@@ -41,7 +41,10 @@ abstract contract DeployBase is Script {
     }
 
     /// @dev Deploys the curve, the hook bound to it, the vault and the auction (call inside a broadcast)
-    function deployStack(IPoolManager manager) internal returns (ConcentratedCurveHook hook, WeightVault vault, WeightAuction auction) {
+    function deployStack(IPoolManager manager, address treasury)
+        internal
+        returns (ConcentratedCurveHook hook, WeightVault vault, WeightAuction auction)
+    {
         ICurve curve = new LogCurve();
         // v4 reads a hook's permissions from its address: mine a CREATE2 salt that gives the right low bits
         bytes memory initCode = abi.encodePacked(type(ConcentratedCurveHook).creationCode, abi.encode(manager, curve));
@@ -61,7 +64,7 @@ abstract contract DeployBase is Script {
         require(ok && deployed.length == 20 && address(bytes20(deployed)) == predicted, "hook deployment");
         hook = ConcentratedCurveHook(predicted);
         vault = new WeightVault(hook, MAX_ORACLE_DEVIATION);
-        auction = new WeightAuction(vault.weights());
+        auction = new WeightAuction(vault.weights(), treasury);
     }
 
     /// @dev sqrtPriceX96 for a whole-dollar ETH price in a native-ETH (18 decimals) / USDC (6 decimals) pool

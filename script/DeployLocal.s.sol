@@ -35,7 +35,8 @@ contract DeployLocal is DeployBase {
         PoolManager manager = new PoolManager(msg.sender);
         PoolSwapTest router = new PoolSwapTest(IPoolManager(address(manager)));
         MockERC20 usdc = new MockERC20("USD Coin", "USDC", 6);
-        (ConcentratedCurveHook hook, WeightVault vault, WeightAuction auction) = deployStack(IPoolManager(address(manager)));
+        (ConcentratedCurveHook hook, WeightVault vault, WeightAuction auction) =
+            deployStack(IPoolManager(address(manager)), msg.sender);
         PoolKey memory key =
             PoolKey(CurrencyLibrary.ADDRESS_ZERO, Currency.wrap(address(usdc)), FEE, TICK_SPACING, IHooks(address(hook)));
         hook.initializePool(key, sqrtPriceX96ForUsd(initPrice), true);

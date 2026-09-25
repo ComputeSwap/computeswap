@@ -39,7 +39,8 @@ contract DeployUnichainSepolia is DeployBase {
 
         vm.startBroadcast();
         address usdc = usdcEnv == address(0) ? address(new TestUSDC()) : usdcEnv;
-        (ConcentratedCurveHook hook, WeightVault vault, WeightAuction auction) = deployStack(POOL_MANAGER);
+        (ConcentratedCurveHook hook, WeightVault vault, WeightAuction auction) =
+            deployStack(POOL_MANAGER, msg.sender);
         // create the pool right away, on the hook's curve, with v4's own price kept in sync
         PoolKey memory key =
             PoolKey(CurrencyLibrary.ADDRESS_ZERO, Currency.wrap(usdc), FEE, TICK_SPACING, IHooks(address(hook)));

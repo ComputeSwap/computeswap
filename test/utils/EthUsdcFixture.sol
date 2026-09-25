@@ -31,15 +31,17 @@ abstract contract EthUsdcFixture is HookFixture {
     WeightVault internal vault;
     WeightAuction internal auction;
     WeightToken internal weights;
+    address internal treasury;
 
     function setUpEthUsdc() internal {
         setUpHook();
+        treasury = makeAddr("treasury");
         usdc = new MockERC20("USD Coin", "USDC", 6);
         ethKey = PoolKey(CurrencyLibrary.ADDRESS_ZERO, Currency.wrap(address(usdc)), 3000, SPACING, IHooks(address(hook)));
         ethId = ethKey.toId();
         vault = new WeightVault(hook, 100); // exercise only within 100 ticks (~1%) of the moving average
         weights = vault.weights();
-        auction = new WeightAuction(weights);
+        auction = new WeightAuction(weights, treasury);
         hook.initializePool(ethKey, sqrtPriceX96At(WAD), true); // ETH = $1
     }
 

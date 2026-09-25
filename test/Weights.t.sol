@@ -96,7 +96,7 @@ contract WeightsTest is EthUsdcFixture {
         uint256 lpUsdcBefore = usdc.balanceOf(lp);
         vm.prank(buyer);
         uint256 cost = auction.buy(auctionId, liquidity, type(uint256).max);
-        assertEq(usdc.balanceOf(lp) - lpUsdcBefore, cost, "proceeds go to the LP");
+        assertEq(usdc.balanceOf(lp) - lpUsdcBefore, cost - auction.quoteProtocolFee(auctionId, liquidity), "proceeds go to the LP");
         assertEq(weights.balanceOf(buyer, seriesId), liquidity);
         console2.log(string.concat("Buyer pays $", fmt(cost, 6, 4), " for the whole ETH weight after the drop starts"));
 

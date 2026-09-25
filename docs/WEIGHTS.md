@@ -82,7 +82,7 @@ WeightToken (ERC-6909)  one id per series; balance reads 0 after expiry; only th
 WeightAuction           create(seriesId, lot, payToken, start, floor, announce, drop): escrows the lot
                         start price during announce (no buys yet; seller can cancel), then falls to floor over drop,
                         then stays at floor
-                        buy(auctionId, amount, maxCost): partial fills once the drop starts, the seller is paid directly
+                        buy(auctionId, amount, maxCost): partial fills once the drop starts; seller gets sale minus 5% of (sale − floor)
                         cancel(auctionId): unsold weights go back (or the auction just closes if they lapsed)
 ConcentratedCurveHook   + a moving-average tick per pool (time constant 10 min), updated at every swap
 ```

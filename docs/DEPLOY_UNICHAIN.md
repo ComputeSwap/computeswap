@@ -121,7 +121,7 @@ The others follow the same pattern:
 | `<curve>` | `src/curves/LogCurve.sol:LogCurve` | none |
 | `<vault>` | `src/weights/WeightVault.sol:WeightVault` | `constructor(address,uint24)` with `<hook> 100` |
 | `<weights>` | `src/weights/WeightToken.sol:WeightToken` | none |
-| `<auction>` | `src/weights/WeightAuction.sol:WeightAuction` | `constructor(address)` with `<weights>` |
+| `<auction>` | `src/weights/WeightAuction.sol:WeightAuction` | `constructor(address weights, address treasury)` — treasury receives the 5% seller premium fee |
 | `<usdc>` | `script/TestUSDC.sol:TestUSDC` | none |
 
 These are Foundry's standard verification commands. Unlike the deployment, they couldn't be rehearsed, because they need the live explorer.

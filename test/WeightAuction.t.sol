@@ -163,11 +163,14 @@ contract WeightAuctionTest is EthUsdcFixture {
         _warpDrop(auctionId);
         uint128 amount = liquidity / 2;
         uint256 expected = auction.quote(auctionId, amount);
+        uint256 fee = auction.quoteProtocolFee(auctionId, amount);
         uint256 lpBefore = usdc.balanceOf(lp);
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
         vm.prank(buyer);
         uint256 cost = auction.buy(auctionId, amount, type(uint256).max);
         assertEq(cost, expected);
-        assertEq(usdc.balanceOf(lp) - lpBefore, cost);
+        assertEq(usdc.balanceOf(lp) - lpBefore, cost - fee);
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, fee);
         assertEq(weights.balanceOf(buyer, seriesId), amount);
         assertEq(_remaining(auctionId), liquidity - amount);
     }
@@ -189,10 +192,25 @@ contract WeightAuctionTest is EthUsdcFixture {
         (,,, uint64 end,,,,,,) = auction.auctions(auctionId);
         vm.warp(end + 1 hours);
         uint128 amount = liquidity / 4;
-        uint256 expected = uint256(floorPrice) * amount / liquidity;
+        uint256 expected = auction.quote(auctionId, amount);
+        assertEq(auction.quoteProtocolFee(auctionId, amount), 0);
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
         vm.prank(buyer);
         assertEq(auction.buy(auctionId, amount, type(uint256).max), expected);
+        assertEq(usdc.balanceOf(treasury), treasuryBefore);
         assertEq(weights.balanceOf(buyer, seriesId), amount);
+    }
+
+    function test_protocolFee_isFivePercentOfPremiumAboveFloor() public {
+        (, uint256 auctionId) = _openDefault();
+        _warpDrop(auctionId);
+        uint128 amount = liquidity / 2;
+        uint256 fee = auction.quoteProtocolFee(auctionId, amount);
+        assertGt(fee, 0);
+        uint256 treasuryBefore = usdc.balanceOf(treasury);
+        vm.prank(buyer);
+        auction.buy(auctionId, amount, type(uint256).max);
+        assertEq(usdc.balanceOf(treasury) - treasuryBefore, fee);
     }
 
     function test_buy_multiplePartialFills() public {
