@@ -40,7 +40,7 @@ contract WeightAuctionTest is EthUsdcFixture {
     function _open(uint256 seriesId, uint128 lot) internal returns (uint256 auctionId) {
         vm.startPrank(lp);
         weights.approve(address(auction), seriesId, lot);
-        auctionId = auction.create(seriesId, lot, address(usdc), startPrice, floorPrice, 5 minutes, 15 minutes);
+        auctionId = auction.create(seriesId, lot, address(usdc), startPrice, floorPrice, 15 minutes);
         vm.stopPrank();
     }
 
@@ -50,12 +50,18 @@ contract WeightAuctionTest is EthUsdcFixture {
     }
 
     function _remaining(uint256 auctionId) internal view returns (uint128) {
-        (,,,,,,, uint128 remaining,,) = auction.auctions(auctionId);
+        (,,,,,,,, uint128 remaining,,) = auction.auctions(auctionId);
         return remaining;
     }
 
+    function _pastAnnounce(uint256 auctionId) internal {
+        (, uint64 startBlock,,,,,,,,,) = auction.auctions(auctionId);
+        vm.roll(uint256(startBlock) + 1);
+    }
+
     function _warpDrop(uint256 auctionId) internal {
-        (,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        (,,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        _pastAnnounce(auctionId);
         vm.warp(dropStart);
     }
 
@@ -64,27 +70,15 @@ contract WeightAuctionTest is EthUsdcFixture {
     function test_create_storesPhasesAndEscrowsWeights() public {
         (uint256 seriesId, uint256 auctionId) = _openDefault();
         uint64 t0 = uint64(block.timestamp);
-        (
-            address seller,
-            uint64 start,
-            uint64 dropStart,
-            uint64 end,
-            ,
-            uint256 storedSeries,
-            uint128 lot,
-            uint128 remaining,
-            uint128 storedStart,
-            uint128 storedFloor
-        ) = auction.auctions(auctionId);
+        (address seller, uint64 startBlock, uint64 start, uint64 dropStart, uint64 end,, uint256 storedSeries,,,,) =
+            auction.auctions(auctionId);
         assertEq(seller, lp);
+        assertEq(startBlock, uint64(block.number));
         assertEq(start, t0);
-        assertEq(dropStart, t0 + 5 minutes);
-        assertEq(end, t0 + 20 minutes);
+        assertEq(dropStart, t0);
+        assertEq(end, t0 + 15 minutes);
         assertEq(storedSeries, seriesId);
-        assertEq(lot, liquidity);
-        assertEq(remaining, liquidity);
-        assertEq(storedStart, startPrice);
-        assertEq(storedFloor, floorPrice);
+        assertEq(auction.currentPrice(auctionId), startPrice);
         assertEq(weights.balanceOf(address(auction), seriesId), liquidity);
         assertEq(weights.balanceOf(lp, seriesId), 0);
         assertEq(auction.nextAuctionId(), 2);
@@ -95,13 +89,11 @@ contract WeightAuctionTest is EthUsdcFixture {
         vm.startPrank(lp);
         weights.approve(address(auction), seriesId, liquidity);
         vm.expectRevert(WeightAuction.InvalidAuction.selector);
-        auction.create(seriesId, 0, address(usdc), startPrice, floorPrice, 5 minutes, 15 minutes);
+        auction.create(seriesId, 0, address(usdc), startPrice, floorPrice, 15 minutes);
         vm.expectRevert(WeightAuction.InvalidAuction.selector);
-        auction.create(seriesId, liquidity, address(usdc), startPrice, floorPrice, 0, 15 minutes);
+        auction.create(seriesId, liquidity, address(usdc), startPrice, floorPrice, 0);
         vm.expectRevert(WeightAuction.InvalidAuction.selector);
-        auction.create(seriesId, liquidity, address(usdc), startPrice, floorPrice, 5 minutes, 0);
-        vm.expectRevert(WeightAuction.InvalidAuction.selector);
-        auction.create(seriesId, liquidity, address(usdc), floorPrice - 1, floorPrice, 5 minutes, 15 minutes);
+        auction.create(seriesId, liquidity, address(usdc), floorPrice - 1, floorPrice, 15 minutes);
         vm.stopPrank();
     }
 
@@ -111,7 +103,7 @@ contract WeightAuctionTest is EthUsdcFixture {
         vm.startPrank(lp);
         weights.approve(address(auction), seriesId, liquidity);
         vm.expectRevert(WeightAuction.OutlivesWeights.selector);
-        auction.create(seriesId, liquidity, address(usdc), startPrice, floorPrice, 30 minutes, 31 minutes);
+        auction.create(seriesId, liquidity, address(usdc), startPrice, floorPrice, 46 minutes);
         vm.stopPrank();
     }
 
@@ -119,7 +111,7 @@ contract WeightAuctionTest is EthUsdcFixture {
         uint256 seriesId = _series();
         vm.startPrank(lp);
         weights.approve(address(auction), seriesId, liquidity);
-        uint256 auctionId = auction.create(seriesId, liquidity, address(usdc), 50e6, 50e6, 1 minutes, 1 minutes);
+        uint256 auctionId = auction.create(seriesId, liquidity, address(usdc), 50e6, 50e6, 1 minutes);
         vm.stopPrank();
         assertEq(auction.currentPrice(auctionId), 50e6);
     }
@@ -128,7 +120,9 @@ contract WeightAuctionTest is EthUsdcFixture {
 
     function test_currentPrice_phases() public {
         (, uint256 auctionId) = _openDefault();
-        (,, uint64 dropStart, uint64 end,,,,,,) = auction.auctions(auctionId);
+        (, uint64 startBlock,, uint64 dropStart, uint64 end,,,,,,) = auction.auctions(auctionId);
+        assertEq(auction.currentPrice(auctionId), startPrice);
+        vm.roll(uint256(startBlock) + 1);
         assertEq(auction.currentPrice(auctionId), startPrice);
         vm.warp(dropStart);
         assertEq(auction.currentPrice(auctionId), startPrice);
@@ -177,7 +171,8 @@ contract WeightAuctionTest is EthUsdcFixture {
 
     function test_buy_priceFallsBetweenBuys() public {
         (, uint256 auctionId) = _openDefault();
-        (,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        (,,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        _pastAnnounce(auctionId);
         vm.warp(dropStart);
         vm.prank(buyer);
         uint256 first = auction.buy(auctionId, liquidity / 4, type(uint256).max);
@@ -189,7 +184,8 @@ contract WeightAuctionTest is EthUsdcFixture {
 
     function test_buy_atFloor_chargesFloorPrice() public {
         (uint256 seriesId, uint256 auctionId) = _openDefault();
-        (,,, uint64 end,,,,,,) = auction.auctions(auctionId);
+        (,,,, uint64 end,,,,,,) = auction.auctions(auctionId);
+        _pastAnnounce(auctionId);
         vm.warp(end + 1 hours);
         uint128 amount = liquidity / 4;
         uint256 expected = auction.quote(auctionId, amount);
@@ -291,7 +287,8 @@ contract WeightAuctionTest is EthUsdcFixture {
 
     function test_cancel_duringDrop_returnsUnsold() public {
         (uint256 seriesId, uint256 auctionId) = _openDefault();
-        (,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        (,,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        _pastAnnounce(auctionId);
         vm.warp(dropStart + 1 minutes);
         vm.prank(lp);
         auction.cancel(auctionId);
@@ -300,7 +297,8 @@ contract WeightAuctionTest is EthUsdcFixture {
 
     function test_cancel_atFloor_returnsUnsold() public {
         (uint256 seriesId, uint256 auctionId) = _openDefault();
-        (,,, uint64 end,,,,,,) = auction.auctions(auctionId);
+        (,,,, uint64 end,,,,,,) = auction.auctions(auctionId);
+        _pastAnnounce(auctionId);
         vm.warp(end + 1 hours);
         vm.prank(lp);
         auction.cancel(auctionId);

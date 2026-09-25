@@ -50,6 +50,8 @@ const S = {
   usdc: 0n,
   chainTime: 0,
   chainTimeAt: 0,
+  chainBlock: 0,
+  chainBlockAt: 0,
   busy: false,
   side: "buy",
   unit: "ETH",
@@ -88,6 +90,8 @@ const nameOf = (addr) => {
 const isMe = (addr) =>
   addr && S.me && addr.toLowerCase() === S.me.toLowerCase();
 const now = () => S.chainTime + Math.floor((Date.now() - S.chainTimeAt) / 1000);
+const chainBlock = () =>
+  S.chainBlock + Math.floor((Date.now() - S.chainBlockAt) / 12000);
 const salt = (id) => ethers.toBeHex(id, 32);
 const deadline = () => BigInt(now() + 3600);
 function fmtDuration(sec) {
@@ -279,6 +283,8 @@ async function refresh() {
   }
   S.chainTime = Math.max(block.timestamp, pendingTime || 0);
   S.chainTimeAt = Date.now();
+  S.chainBlock = block.number;
+  S.chainBlockAt = Date.now();
   [S.eth, S.usdc] = S.me
     ? await Promise.all([S.provider.getBalance(S.me), usdc.balanceOf(S.me)])
     : [0n, 0n];
@@ -366,6 +372,7 @@ async function refresh() {
       return {
         id,
         seller: a.seller,
+        startBlock: Number(a.startBlock),
         start: Number(a.start),
         dropStart: Number(a.dropStart),
         end: Number(a.end),
@@ -479,8 +486,12 @@ function drawCharts() {
   });
 }
 
-function auctionPrice(a, t = now()) {
-  if (t < a.dropStart) return toUsdc(a.startPrice);
+function auctionAnnounced(a, block = chainBlock()) {
+  return block <= a.startBlock;
+}
+
+function auctionPrice(a, t = now(), block = chainBlock()) {
+  if (auctionAnnounced(a, block)) return toUsdc(a.startPrice);
   if (t >= a.end) return toUsdc(a.floorPrice);
   const f = (t - a.dropStart) / (a.end - a.dropStart);
   return (
@@ -511,7 +522,7 @@ function renderWeights() {
     const ethNow = pos
       ? C.reserves({ ...pos, L: Number(a.remaining) / 1e6 }, S.pool.price).x
       : 0;
-    const announced = t < a.dropStart;
+    const announced = auctionAnnounced(a);
     const act =
       toggle(`a${a.id}`) +
       (isMe(a.seller)
@@ -586,18 +597,16 @@ function renderTimers() {
     if (priceEl) {
       const lotPrice =
         (auctionPrice(a, t) * Number(a.remaining)) / Number(a.lot);
-      priceEl.textContent =
-        t < a.dropStart
-          ? `listed at $${fmtNum(lotPrice, 2)}`
-          : `$${fmtNum(lotPrice, 2)}`;
+      priceEl.textContent = auctionAnnounced(a)
+        ? `listed at $${fmtNum(lotPrice, 2)}`
+        : `$${fmtNum(lotPrice, 2)}`;
     }
     const endEl = document.querySelector(`[data-auction-ends="${a.id}"]`);
     const floor = (toUsdc(a.floorPrice) * Number(a.remaining)) / Number(a.lot);
     if (endEl) {
-      endEl.textContent =
-        t < a.dropStart
-          ? `· announced · drops in ${fmtDuration(a.dropStart - t)}`
-          : t < a.end
+      endEl.textContent = auctionAnnounced(a)
+        ? "· announced · drops next block"
+        : t < a.end
             ? `· falling for ${fmtDuration(a.end - t)} · floor $${fmtNum(floor, 2)}`
             : `· at floor $${fmtNum(floor, 2)}`;
     }
@@ -1003,21 +1012,17 @@ async function doSplit() {
   const units =
     (pos.liquidity * BigInt(Math.round(splitShare() * 10000))) / 10000n;
   const days = Number($("split-days").value);
-  const announceMin = Number($("auction-announce").value);
   const dropMin = Number($("auction-drop").value);
   const startPrice = Number($("auction-start").value);
   const floorPrice = Number($("auction-floor").value);
   if (!(Number($("split-share").value) > 0))
     return toast("Choose a share of the position above 0%.", "err");
-  if (!(days > 0) || !(announceMin > 0) || !(dropMin > 0)) {
-    return toast(
-      "Expiry, announcement and price drop must all be above 0.",
-      "err",
-    );
+  if (!(days > 0) || !(dropMin > 0)) {
+    return toast("Expiry and price drop must both be above 0.", "err");
   }
-  if ((announceMin + dropMin) * 60 > days * 86400) {
+  if (dropMin * 60 > days * 86400) {
     return toast(
-      "The announcement and price drop must finish before the weight expires.",
+      "The price drop must finish before the weight expires.",
       "err",
     );
   }
@@ -1056,7 +1061,6 @@ async function doSplit() {
       S.dep.usdc,
       start,
       floor,
-      BigInt(Math.round(announceMin * 60)),
       BigInt(Math.round(dropMin * 60)),
     ]),
   );

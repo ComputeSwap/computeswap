@@ -79,8 +79,8 @@ WeightVault (ERC-721)   owns every position inside the hook (salt = tokenId)
   claim(currency, to)                                        owner payouts that could not be pushed (section 5)
   previewExercise(seriesId, units)                           amounts + whether the oracle allows it now
 WeightToken (ERC-6909)  one id per series; balance reads 0 after expiry; only the vault mints/burns
-WeightAuction           create(seriesId, lot, payToken, start, floor, announce, drop): escrows the lot
-                        start price during announce (no buys yet; seller can cancel), then falls to floor over drop,
+WeightAuction           create(seriesId, lot, payToken, start, floor, drop): escrows the lot
+                        start price for one block (no buys yet; seller can cancel), then falls to floor over drop,
                         then stays at floor
                         buy(auctionId, amount, maxCost): partial fills once the drop starts; seller gets sale minus 5% of (sale − floor)
                         cancel(auctionId): unsold weights go back (or the auction just closes if they lapsed)
@@ -90,7 +90,7 @@ ConcentratedCurveHook   + a moving-average tick per pool (time constant 10 min),
 The lifecycle that the UI walks through:
 
 ```
-LP: add liquidity ──> popup: split the ETH weight (share, days) ──> Dutch auction (announce, drop, start, floor)
+LP: add liquidity ──> popup: split the ETH weight (share, days) ──> Dutch auction (1-block announce, drop, start, floor)
 buyer: buy (all or part) ──> ... ETH falls ... ──> exercise: vault withdraws that liquidity at today's price
                                                      buyer <- ETH leg      LP (NFT owner) <- USDC leg + fees
              or: nothing happens for 5 days ──> weights lapse, lock lifts ──> LP withdraws everything

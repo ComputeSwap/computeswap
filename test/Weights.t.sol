@@ -58,14 +58,14 @@ contract WeightsTest is EthUsdcFixture {
         vm.startPrank(lp);
         weights.approve(address(auction), seriesId, liquidity);
         auctionId = auction.create(
-            seriesId, liquidity, address(usdc), uint128(legValue * 2), uint128(legValue / 4), 5 minutes, 15 minutes
+            seriesId, liquidity, address(usdc), uint128(legValue * 2), uint128(legValue / 4), 15 minutes
         );
         vm.stopPrank();
     }
 
     function _priceAfterSixMinutesOfDrop(uint256 auctionId, uint256 startPrice) internal returns (uint256) {
-        (,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
-        vm.warp(dropStart - 3 minutes);
+        (, uint64 startBlock,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        vm.roll(uint256(startBlock) + 1);
         assertEq(auction.currentPrice(auctionId), startPrice, "announcement holds the start price");
         vm.warp(dropStart + 6 minutes);
         return auction.currentPrice(auctionId);
@@ -138,7 +138,8 @@ contract WeightsTest is EthUsdcFixture {
     function test_expiryReleasesTheLp() public {
         uint256 seriesId = _split(5 days);
         (uint256 auctionId,) = _auction(seriesId);
-        (,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        (, uint64 startBlock,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        vm.roll(uint256(startBlock) + 1);
         vm.warp(dropStart);
         vm.prank(buyer);
         auction.buy(auctionId, liquidity / 2, type(uint256).max);
@@ -163,7 +164,8 @@ contract WeightsTest is EthUsdcFixture {
     function test_cancelAndMerge() public {
         uint256 seriesId = _split(5 days);
         (uint256 auctionId,) = _auction(seriesId);
-        (,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        (, uint64 startBlock,, uint64 dropStart,,,,,,,) = auction.auctions(auctionId);
+        vm.roll(uint256(startBlock) + 1);
         vm.warp(dropStart);
         uint128 sold = liquidity / 4;
         vm.prank(buyer);

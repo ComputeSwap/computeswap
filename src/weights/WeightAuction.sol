@@ -8,7 +8,7 @@ import {FixedPointMathLib} from "solady/utils/FixedPointMathLib.sol";
 import {WeightToken} from "./WeightToken.sol";
 
 /// @title WeightAuction - Dutch auctions of WeightTokens
-/// @notice The seller escrows a lot of weights. During `announcementDuration` the price stays at `startPrice`
+/// @notice The seller escrows a lot of weights. During the creation block the price stays at `startPrice`
 ///         (announcement; cancel still allowed). Then it falls linearly from `startPrice` to `floorPrice` over
 ///         `dropDuration`, and stays at `floorPrice` until the weights expire. During the drop and floor phases anyone
 ///         can buy any part of what is left at the current price. A protocol fee applies to the seller's premium above
@@ -31,6 +31,7 @@ contract WeightAuction is ReentrancyGuard {
         uint128 startPrice,
         uint128 floorPrice,
         uint64 start,
+        uint64 startBlock,
         uint64 dropStart,
         uint64 end
     );
@@ -41,6 +42,7 @@ contract WeightAuction is ReentrancyGuard {
 
     struct Auction {
         address seller;
+        uint64 startBlock;
         uint64 start;
         uint64 dropStart;
         uint64 end;
@@ -71,20 +73,18 @@ contract WeightAuction is ReentrancyGuard {
         address payToken,
         uint128 startPrice,
         uint128 floorPrice,
-        uint64 announcementDuration,
         uint64 dropDuration
     ) external nonReentrant returns (uint256 auctionId) {
-        if (lot == 0 || announcementDuration == 0 || dropDuration == 0 || startPrice < floorPrice) {
-            revert InvalidAuction();
-        }
+        if (lot == 0 || dropDuration == 0 || startPrice < floorPrice) revert InvalidAuction();
         uint64 start = uint64(block.timestamp);
-        uint64 dropStart = start + announcementDuration;
-        uint64 end = dropStart + dropDuration;
+        uint64 dropStart = start;
+        uint64 end = start + dropDuration;
         if (end > weights.expiryOf(seriesId)) revert OutlivesWeights();
 
         auctionId = nextAuctionId++;
         auctions[auctionId] = Auction({
             seller: msg.sender,
+            startBlock: uint64(block.number),
             start: start,
             dropStart: dropStart,
             end: end,
@@ -97,14 +97,24 @@ contract WeightAuction is ReentrancyGuard {
         });
         weights.transferFrom(msg.sender, address(this), seriesId, lot);
         emit AuctionCreated(
-            auctionId, msg.sender, seriesId, lot, payToken, startPrice, floorPrice, start, dropStart, end
+            auctionId,
+            msg.sender,
+            seriesId,
+            lot,
+            payToken,
+            startPrice,
+            floorPrice,
+            start,
+            uint64(block.number),
+            dropStart,
+            end
         );
     }
 
     function currentPrice(uint256 auctionId) public view returns (uint256) {
         Auction storage a = auctions[auctionId];
         if (a.lot == 0) revert InvalidAuction();
-        if (block.timestamp < a.dropStart) return a.startPrice;
+        if (block.number <= a.startBlock) return a.startPrice;
         if (block.timestamp >= a.end) return a.floorPrice;
         uint256 drop = uint256(a.startPrice - a.floorPrice) * (block.timestamp - a.dropStart) / (a.end - a.dropStart);
         return a.startPrice - drop;
@@ -127,7 +137,7 @@ contract WeightAuction is ReentrancyGuard {
         Auction storage a = auctions[auctionId];
         if (a.lot == 0) revert InvalidAuction();
         if (amount == 0 || amount > a.remaining || weights.isExpired(a.seriesId)) revert AuctionClosed();
-        if (block.timestamp < a.dropStart) revert AnnouncementActive();
+        if (block.number <= a.startBlock) revert AnnouncementActive();
         cost = quote(auctionId, amount);
         if (cost > maxCost) revert TooExpensive(cost);
         uint256 protocolFee = quoteProtocolFee(auctionId, amount);
