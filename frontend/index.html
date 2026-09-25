@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Log Curve Pool</title>
+    <link rel="icon" href="data:," />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <header class="bar">
+      <div class="brand">x·e<sup>y</sup> <span id="price" class="num"></span> <span id="network" class="net muted"></span></div>
+      <div class="bar-right">
+        <select id="account" aria-label="Wallet"></select>
+        <button type="button" id="connect" class="small hidden">Connect wallet</button>
+        <span id="balances" class="num muted"></span>
+        <button type="button" id="faucet" class="ghost small hidden">+10,000 test USDC</button>
+        <span id="clock" class="clock hidden" title="Move the local chain's clock">
+          <button type="button" class="ghost small" data-advance="3600">+1h</button>
+          <button type="button" class="ghost small" data-advance="86400">+1d</button>
+          <button type="button" class="ghost small" data-advance="432000">+5d</button>
+        </span>
+      </div>
+    </header>
+
+    <main class="cols">
+      <section>
+        <h2>Add liquidity</h2>
+        <form id="add-form">
+          <div class="fields">
+            <label>Amount ($)<input id="add-value" type="number" step="any" value="100" /></label>
+            <label>Min price<input id="add-lo" type="number" step="any" /></label>
+            <label>Max price<input id="add-hi" type="number" step="any" /></label>
+          </div>
+          <label class="check"><input id="add-5050" type="checkbox" checked /> 50 / 50 split: set one price, the other follows</label>
+          <p id="add-preview" class="line"></p>
+          <button type="submit" id="add-button">Add liquidity</button>
+        </form>
+        <canvas id="liq-chart" class="chart"></canvas>
+
+        <h2>History</h2>
+        <div id="history"></div>
+      </section>
+
+      <section>
+        <h2>Swap</h2>
+        <form id="swap-form">
+          <div class="swap-row">
+            <div class="seg" id="swap-side">
+              <button type="button" data-side="buy" class="on">Buy</button>
+              <button type="button" data-side="sell">Sell</button>
+            </div>
+            <input id="swap-amount" type="number" step="any" placeholder="ETH to buy" />
+            <div class="seg" id="swap-unit">
+              <button type="button" data-unit="ETH" class="on">ETH</button>
+              <button type="button" data-unit="USDC">USDC</button>
+            </div>
+          </div>
+          <p id="swap-preview" class="line"></p>
+          <button type="submit" id="swap-button">Swap</button>
+        </form>
+        <canvas id="res-chart" class="chart"></canvas>
+
+        <div id="weights-section" class="hidden">
+          <h2>ETH weights</h2>
+          <div id="weights"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="pos-pop" class="pop hidden"></div>
+
+    <div id="split-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="split-title">
+      <div class="modal-card">
+        <h2 id="split-title">Sell the ETH weight</h2>
+        <p id="split-intro" class="muted"></p>
+        <div class="fields">
+          <label>Share of position (%)<input id="split-share" type="number" value="100" min="1" max="100" /></label>
+          <label>Expires after (days)<input id="split-days" type="number" step="any" value="5" /></label>
+          <label>Announcement (min)<input id="auction-announce" type="number" step="any" value="5" /></label>
+          <label>Price drop (min)<input id="auction-drop" type="number" step="any" value="15" /></label>
+        </div>
+        <canvas id="payoff-chart" class="chart small"></canvas>
+        <div class="fields two">
+          <label>Start price ($)<input id="auction-start" type="number" step="any" /></label>
+          <label>Floor price ($)<input id="auction-floor" type="number" step="any" min="0" /></label>
+        </div>
+        <p class="muted">During the announcement the lot is listed at the start price and you can cancel, but no one can buy yet. Then the price falls smoothly to the floor and stays there until expiry.</p>
+        <div class="actions">
+          <button type="button" id="split-cancel" class="ghost">Not now</button>
+          <button type="button" id="split-auction">Start auction</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast hidden" role="status"></div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
