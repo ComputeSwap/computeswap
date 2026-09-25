@@ -1,15 +1,31 @@
 // Front-end for the ETH/USDC pool on the log curve  (x + L/pb) e^(y/L + ln pa) = L.
 // Left: add liquidity (with a 50/50 solver), the liquidity chart (click a band for that position's actions), history.
 // Right: swap, the curve in reserve space, ETH weights (each with a payoff diagram on demand).
-import { ethers, ABI, decodeError, splitDelta } from "./chain.js";
+import { ABI, decodeError, ethers, splitDelta } from "./chain.js";
+import {
+  drawLiquidity,
+  drawReserves,
+  drawWeightPayoff,
+  fmtNum,
+} from "./charts.js";
 import * as C from "./curve.js";
-import { drawReserves, drawLiquidity, drawWeightPayoff, fmtNum } from "./charts.js";
 
 const LOCAL_RPC = "http://127.0.0.1:8545";
 const LOCAL_CHAIN_ID = 31337;
 const MIN_PRICE_LIMIT = 4295128740n; // TickMath.MIN_SQRT_PRICE + 1
 const MAX_PRICE_LIMIT = 1461446703485210103287273052203988822378723970341n; // TickMath.MAX_SQRT_PRICE - 1
-const NAMES = ["Alice", "Bob", "Carol", "Dave", "Erin", "Frank", "Grace", "Heidi", "Ivan", "Judy"];
+const NAMES = [
+  "Alice",
+  "Bob",
+  "Carol",
+  "Dave",
+  "Erin",
+  "Frank",
+  "Grace",
+  "Heidi",
+  "Ivan",
+  "Judy",
+];
 const $ = (id) => document.getElementById(id);
 
 const S = {
@@ -61,16 +77,23 @@ const fUsdc = (units, d = 4) => fmtNum(toUsdc(units), d);
 const abs = (v) => (v < 0n ? -v : v);
 const short = (addr) => addr.slice(0, 6) + "…" + addr.slice(-4);
 const nameOf = (addr) => {
-  const i = S.signers.findIndex((s) => s.address.toLowerCase() === addr.toLowerCase());
+  const i = S.signers.findIndex(
+    (s) => s.address.toLowerCase() === addr.toLowerCase(),
+  );
   if (i >= 0) return NAMES[i] || `account ${i}`;
-  return S.me && addr.toLowerCase() === S.me.toLowerCase() ? "You" : short(addr);
+  return S.me && addr.toLowerCase() === S.me.toLowerCase()
+    ? "You"
+    : short(addr);
 };
-const isMe = (addr) => addr && S.me && addr.toLowerCase() === S.me.toLowerCase();
+const isMe = (addr) =>
+  addr && S.me && addr.toLowerCase() === S.me.toLowerCase();
 const now = () => S.chainTime + Math.floor((Date.now() - S.chainTimeAt) / 1000);
 const salt = (id) => ethers.toBeHex(id, 32);
 const deadline = () => BigInt(now() + 3600);
 function fmtDuration(sec) {
-  if (sec <= 0) return "0m";
+  if (sec <= 0) {
+    return "0m";
+  }
   const d = Math.floor(sec / 86400);
   const h = Math.floor((sec % 86400) / 3600);
   const m = Math.floor((sec % 3600) / 60);
@@ -91,7 +114,11 @@ function toast(msg, kind = "", link = null) {
   }
   el.className = "toast" + (kind === "err" ? " err" : "");
   clearTimeout(toastTimer);
-  if (kind) toastTimer = setTimeout(() => el.classList.add("hidden"), kind === "err" ? 9000 : 3000);
+  if (kind)
+    toastTimer = setTimeout(
+      () => el.classList.add("hidden"),
+      kind === "err" ? 9000 : 3000,
+    );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -99,9 +126,14 @@ function toast(msg, kind = "", link = null) {
 // ---------------------------------------------------------------------------------------------------------------------
 async function init() {
   try {
-    S.dep = await (await fetch("./deployments.json", { cache: "no-store" })).json();
+    S.dep = await (
+      await fetch("./deployments.json", { cache: "no-store" })
+    ).json();
   } catch {
-    return toast("deployments.json not found: start anvil and run script/DeployLocal.s.sol (see README)", "err");
+    return toast(
+      "deployments.json not found: start anvil and run script/DeployLocal.s.sol (see README)",
+      "err",
+    );
   }
   S.local = Number(S.dep.chainId) === LOCAL_CHAIN_ID;
   const rpc = S.dep.rpc || LOCAL_RPC;
@@ -113,7 +145,12 @@ async function init() {
     await S.provider.getBlockNumber();
     if (S.local) S.signers = (await S.provider.listAccounts()).slice(0, 10);
   } catch {
-    return toast(S.local ? `Cannot reach the chain at ${rpc}: is anvil running?` : `Cannot reach ${rpc}.`, "err");
+    return toast(
+      S.local
+        ? `Cannot reach the chain at ${rpc}: is anvil running?`
+        : `Cannot reach ${rpc}.`,
+      "err",
+    );
   }
   // locally: pick one of anvil's unlocked accounts and move its clock; on a testnet: connect a browser wallet
   $("account").classList.toggle("hidden", !S.local);
@@ -121,7 +158,9 @@ async function init() {
   $("connect").classList.toggle("hidden", S.local);
   $("faucet").classList.toggle("hidden", S.local || !S.dep.usdcMintable);
   $("network").textContent = S.local ? "" : S.dep.chainName || "";
-  $("account").innerHTML = S.signers.map((s, i) => `<option value="${i}">${NAMES[i]}</option>`).join("");
+  $("account").innerHTML = S.signers
+    .map((s, i) => `<option value="${i}">${NAMES[i]}</option>`)
+    .join("");
   S.key = {
     currency0: ethers.ZeroAddress,
     currency1: S.dep.usdc,
@@ -132,8 +171,14 @@ async function init() {
   S.poolId = ethers.keccak256(
     ethers.AbiCoder.defaultAbiCoder().encode(
       ["address", "address", "uint24", "int24", "address"],
-      [S.key.currency0, S.key.currency1, S.key.fee, S.key.tickSpacing, S.key.hooks]
-    )
+      [
+        S.key.currency0,
+        S.key.currency1,
+        S.key.fee,
+        S.key.tickSpacing,
+        S.key.hooks,
+      ],
+    ),
   );
   if (S.local) setAccount(0);
   else bind(S.provider, null); // read-only until a wallet connects
@@ -163,25 +208,33 @@ function bind(runner, address) {
 
 /** Connects a browser wallet (MetaMask, Rabby, ...) on the deployment's chain, adding the chain if the wallet lacks it. */
 async function connectWallet() {
-  if (!window.ethereum) return toast("No browser wallet found: install MetaMask or Rabby.", "err");
+  if (!window.ethereum)
+    return toast("No browser wallet found: install MetaMask or Rabby.", "err");
   const chainId = "0x" + Number(S.dep.chainId).toString(16);
   try {
     try {
-      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId }] });
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId }],
+      });
     } catch (e) {
       if (e?.code !== 4902) throw e; // 4902: the wallet does not know the chain yet
       await window.ethereum.request({
         method: "wallet_addEthereumChain",
-        params: [{
-          chainId,
-          chainName: S.dep.chainName,
-          rpcUrls: [S.dep.rpc],
-          nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
-          blockExplorerUrls: S.dep.explorer ? [S.dep.explorer] : [],
-        }],
+        params: [
+          {
+            chainId,
+            chainName: S.dep.chainName,
+            rpcUrls: [S.dep.rpc],
+            nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+            blockExplorerUrls: S.dep.explorer ? [S.dep.explorer] : [],
+          },
+        ],
       });
     }
-    const signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
+    const signer = await new ethers.BrowserProvider(
+      window.ethereum,
+    ).getSigner();
     bind(signer, await signer.getAddress());
     $("connect").textContent = short(S.me);
     await scheduleRefresh();
@@ -217,29 +270,53 @@ async function refresh() {
   let pendingTime = 0;
   if (S.local) {
     try {
-      pendingTime = parseInt((await S.provider.send("eth_getBlockByNumber", ["pending", false])).timestamp, 16);
+      pendingTime = parseInt(
+        (await S.provider.send("eth_getBlockByNumber", ["pending", false]))
+          .timestamp,
+        16,
+      );
     } catch {}
   }
   S.chainTime = Math.max(block.timestamp, pendingTime || 0);
   S.chainTimeAt = Date.now();
-  [S.eth, S.usdc] = S.me ? await Promise.all([S.provider.getBalance(S.me), usdc.balanceOf(S.me)]) : [0n, 0n];
+  [S.eth, S.usdc] = S.me
+    ? await Promise.all([S.provider.getBalance(S.me), usdc.balanceOf(S.me)])
+    : [0n, 0n];
 
   const [curve] = await hook.poolConfig(S.poolId);
   S.pool = { initialized: curve !== ethers.ZeroAddress };
   if (S.pool.initialized) {
     const slot0 = await hook.getSlot0(S.poolId);
-    S.pool = { initialized: true, tick: Number(slot0.tick), price: C.sqrtPriceToPrice(slot0.sqrtPriceX96) };
-    if (!$("add-hi").value && !$("add-lo").value) $("add-hi").value = String(+(2 * S.pool.price).toPrecision(4));
+    S.pool = {
+      initialized: true,
+      tick: Number(slot0.tick),
+      price: C.sqrtPriceToPrice(slot0.sqrtPriceX96),
+    };
+    if (!$("add-hi").value && !$("add-lo").value)
+      $("add-hi").value = String(+(2 * S.pool.price).toPrecision(4));
   }
 
   // positions are held by the vault (salt = position id)
-  const [n, ns, na] = (await Promise.all([vault.nextPositionId(), vault.nextSeriesId(), auction.nextAuctionId()])).map(Number);
-  const ids = (count) => Array.from({ length: Math.max(0, count - 1) }, (_, i) => i + 1);
+  const [n, ns, na] = (
+    await Promise.all([
+      vault.nextPositionId(),
+      vault.nextSeriesId(),
+      auction.nextAuctionId(),
+    ])
+  ).map(Number);
+  const ids = (count) =>
+    Array.from({ length: Math.max(0, count - 1) }, (_, i) => i + 1);
   const loaded = await Promise.all(
     ids(n).map(async (id) => {
       const p = await vault.getPosition(id);
       if (p.liquidity === 0n) return null;
-      const a = await hook.getPositionAmounts(S.poolId, S.dep.vault, p.tickLower, p.tickUpper, salt(id));
+      const a = await hook.getPositionAmounts(
+        S.poolId,
+        S.dep.vault,
+        p.tickLower,
+        p.tickUpper,
+        salt(id),
+      );
       return {
         id,
         owner: p.owner,
@@ -254,20 +331,33 @@ async function refresh() {
         fees0: a.fees0,
         fees1: a.fees1,
       };
-    })
+    }),
   );
   S.positions = loaded.filter(Boolean);
 
   S.series = await Promise.all(
     ids(ns).map(async (id) => {
-      const [s, balance] = await Promise.all([vault.series(id), S.me ? weights.balanceOf(S.me, id) : 0n]);
-      const entry = { id, positionId: Number(s.positionId), expiry: Number(s.expiry), balance };
+      const [s, balance] = await Promise.all([
+        vault.series(id),
+        S.me ? weights.balanceOf(S.me, id) : 0n,
+      ]);
+      const entry = {
+        id,
+        positionId: Number(s.positionId),
+        expiry: Number(s.expiry),
+        balance,
+      };
       if (balance > 0n) {
         const pv = await vault.previewExercise(id, balance);
-        entry.preview = { leg: pv.legAmount, allowed: pv.allowed, tick: Number(pv.tick), ema: Number(pv.emaTick) };
+        entry.preview = {
+          leg: pv.legAmount,
+          allowed: pv.allowed,
+          tick: Number(pv.tick),
+          ema: Number(pv.emaTick),
+        };
       }
       return entry;
-    })
+    }),
   );
 
   S.auctions = await Promise.all(
@@ -285,7 +375,7 @@ async function refresh() {
         startPrice: a.startPrice,
         floorPrice: a.floorPrice,
       };
-    })
+    }),
   );
 
   await loadHistory(block.number);
@@ -299,12 +389,19 @@ async function send(label, fn) {
   toast(`${label}…`);
   try {
     const receipt = await (await fn()).wait();
-    toast(`✓ ${label}`, "ok", S.dep.explorer ? `${S.dep.explorer}/tx/${receipt.hash}` : null);
+    toast(
+      `✓ ${label}`,
+      "ok",
+      S.dep.explorer ? `${S.dep.explorer}/tx/${receipt.hash}` : null,
+    );
     await scheduleRefresh();
     return receipt;
   } catch (e) {
     const mined = e?.receipt && e.receipt.status === 0;
-    toast(`${label} failed: ${mined && !e.data ? "reverted on-chain (the pool moved after the estimate?)" : decodeError(e)}`, "err");
+    toast(
+      `${label} failed: ${mined && !e.data ? "reverted on-chain (the pool moved after the estimate?)" : decodeError(e)}`,
+      "err",
+    );
     await scheduleRefresh();
     return null;
   }
@@ -313,12 +410,17 @@ async function send(label, fn) {
 /** Sends a contract call with 30% gas headroom: a swap that lands after another one may walk more ticks. */
 async function call(contract, method, args, overrides = {}) {
   const estimate = await contract[method].estimateGas(...args, overrides);
-  return contract[method](...args, { ...overrides, gasLimit: (estimate * 13n) / 10n + 20_000n });
+  return contract[method](...args, {
+    ...overrides,
+    gasLimit: (estimate * 13n) / 10n + 20_000n,
+  });
 }
 
 async function ensureUsdcAllowance(spender, amount) {
   if ((await S.c.usdc.allowance(S.me, spender)) >= amount) return true;
-  return !!(await send("Approve USDC", () => call(S.c.usdc, "approve", [spender, ethers.MaxUint256])));
+  return !!(await send("Approve USDC", () =>
+    call(S.c.usdc, "approve", [spender, ethers.MaxUint256]),
+  ));
 }
 
 /** Runs one user action at a time; action buttons are disabled while a transaction is pending. */
@@ -352,7 +454,9 @@ const parseLogs = (receipt, contract, name) =>
 // ---------------------------------------------------------------------------------------------------------------------
 function render() {
   const p = S.pool;
-  $("balances").textContent = S.me ? `${fEth(S.eth, S.local ? 2 : 4)} ETH · ${fUsdc(S.usdc, 2)} USDC` : "";
+  $("balances").textContent = S.me
+    ? `${fEth(S.eth, S.local ? 2 : 4)} ETH · ${fUsdc(S.usdc, 2)} USDC`
+    : "";
   $("price").textContent = p.initialized ? `$${fmtNum(p.price, 4)}` : "";
   $("add-form").classList.toggle("hidden", !p.initialized);
   $("swap-button").disabled = !p.initialized;
@@ -379,13 +483,17 @@ function auctionPrice(a, t = now()) {
   if (t < a.dropStart) return toUsdc(a.startPrice);
   if (t >= a.end) return toUsdc(a.floorPrice);
   const f = (t - a.dropStart) / (a.end - a.dropStart);
-  return toUsdc(a.startPrice) - (toUsdc(a.startPrice) - toUsdc(a.floorPrice)) * f;
+  return (
+    toUsdc(a.startPrice) - (toUsdc(a.startPrice) - toUsdc(a.floorPrice)) * f
+  );
 }
 
 function renderWeights() {
   const t = now();
   const seriesOf = (id) => S.series.find((s) => s.id === id);
-  const live = S.auctions.filter((a) => a.remaining > 0n && seriesOf(a.seriesId)?.expiry > t);
+  const live = S.auctions.filter(
+    (a) => a.remaining > 0n && seriesOf(a.seriesId)?.expiry > t,
+  );
   const held = S.series.filter((s) => s.balance > 0n && s.expiry > t);
   $("weights-section").classList.toggle("hidden", !live.length && !held.length);
   const rows = [];
@@ -400,15 +508,17 @@ function renderWeights() {
   for (const a of live) {
     const s = seriesOf(a.seriesId);
     const pos = S.positions.find((p) => p.id === s.positionId);
-    const ethNow = pos ? C.reserves({ ...pos, L: Number(a.remaining) / 1e6 }, S.pool.price).x : 0;
+    const ethNow = pos
+      ? C.reserves({ ...pos, L: Number(a.remaining) / 1e6 }, S.pool.price).x
+      : 0;
     const announced = t < a.dropStart;
     const act =
       toggle(`a${a.id}`) +
       (isMe(a.seller)
-      ? `<button class="small ghost" data-act="cancel" data-auction="${a.id}">Cancel</button>`
-      : announced
-        ? ""
-        : `<input type="number" data-auction="${a.id}" value="${S.buyPct[a.id] ?? 100}" min="1" max="100" aria-label="Share to buy (%)" /> %
+        ? `<button class="small ghost" data-act="cancel" data-auction="${a.id}">Cancel</button>`
+        : announced
+          ? ""
+          : `<input type="number" data-auction="${a.id}" value="${S.buyPct[a.id] ?? 100}" min="1" max="100" aria-label="Share to buy (%)" /> %
            <button class="small" data-act="buy" data-auction="${a.id}">Buy</button>`);
     rows.push(`<div class="witem"><div class="item">
       <div>For sale: position #${s.positionId}${pos ? ` <span class="sub">$${fmtNum(pos.pa, 4)}–$${fmtNum(pos.pb, 4)}</span>` : ""}<br>
@@ -420,8 +530,11 @@ function renderWeights() {
     const pv = s.preview;
     const pos = S.positions.find((p) => p.id === s.positionId);
     const owner = pos && isMe(pos.owner);
-    const devPct = (Math.pow(1.0001, pv.tick - pv.ema) - 1) * 100;
-    const wait = pv.allowed || owner ? "" : `<br><span class="sub">Price is ${fmtNum(Math.abs(devPct), 1)}% off its 10-min average: exercise opens when it settles.</span>`;
+    const devPct = (1.0001 ** (pv.tick - pv.ema) - 1) * 100;
+    const wait =
+      pv.allowed || owner
+        ? ""
+        : `<br><span class="sub">Price is ${fmtNum(Math.abs(devPct), 1)}% off its 10-min average: exercise opens when it settles.</span>`;
     const act =
       toggle(`s${s.id}`) +
       (owner
@@ -441,19 +554,42 @@ function renderWeights() {
 function drawPayoffs() {
   document.querySelectorAll("canvas[data-payoff]").forEach((canvas) => {
     const p = S.payoffs[Number(canvas.dataset.payoff)];
-    const lines = p.auction ? [{ value: (auctionPrice(p.auction) * Number(p.auction.remaining)) / Number(p.auction.lot), label: "auction price" }] : [];
-    drawWeightPayoff(canvas, { pa: p.pa, pb: p.pb, L: p.L, price: S.pool.price, lines });
+    const lines = p.auction
+      ? [
+          {
+            value:
+              (auctionPrice(p.auction) * Number(p.auction.remaining)) /
+              Number(p.auction.lot),
+            label: "auction price",
+          },
+        ]
+      : [];
+    drawWeightPayoff(canvas, {
+      pa: p.pa,
+      pb: p.pb,
+      L: p.L,
+      price: S.pool.price,
+      lines,
+    });
   });
 }
 
 function renderTimers() {
   const t = now();
-  document.querySelectorAll("[data-expiry]").forEach((el) => (el.textContent = fmtDuration(Number(el.dataset.expiry) - t)));
+  document
+    .querySelectorAll("[data-expiry]")
+    .forEach(
+      (el) => (el.textContent = fmtDuration(Number(el.dataset.expiry) - t)),
+    );
   for (const a of S.auctions) {
     const priceEl = document.querySelector(`[data-auction-price="${a.id}"]`);
     if (priceEl) {
-      const lotPrice = (auctionPrice(a, t) * Number(a.remaining)) / Number(a.lot);
-      priceEl.textContent = t < a.dropStart ? `listed at $${fmtNum(lotPrice, 2)}` : `$${fmtNum(lotPrice, 2)}`;
+      const lotPrice =
+        (auctionPrice(a, t) * Number(a.remaining)) / Number(a.lot);
+      priceEl.textContent =
+        t < a.dropStart
+          ? `listed at $${fmtNum(lotPrice, 2)}`
+          : `$${fmtNum(lotPrice, 2)}`;
     }
     const endEl = document.querySelector(`[data-auction-ends="${a.id}"]`);
     const floor = (toUsdc(a.floorPrice) * Number(a.remaining)) / Number(a.lot);
@@ -477,13 +613,18 @@ async function loadHistory(latest) {
   const from = Math.max(S.historyFrom, Number(S.dep.startBlock || 0));
   if (latest < from) return;
   const ranges = [];
-  for (let b = from; b <= latest; b += LOG_CHUNK) ranges.push([b, Math.min(latest, b + LOG_CHUNK - 1)]);
+  for (let b = from; b <= latest; b += LOG_CHUNK)
+    ranges.push([b, Math.min(latest, b + LOG_CHUNK - 1)]);
   const logs = [];
   for (let i = 0; i < ranges.length; i += 4) {
     const batch = await Promise.all(
       ranges.slice(i, i + 4).map(([fromBlock, toBlock]) =>
-        S.provider.getLogs({ address: [S.dep.hook, S.dep.vault, S.dep.auction], fromBlock, toBlock })
-      )
+        S.provider.getLogs({
+          address: [S.dep.hook, S.dep.vault, S.dep.auction],
+          fromBlock,
+          toBlock,
+        }),
+      ),
     );
     logs.push(...batch.flat());
   }
@@ -502,8 +643,12 @@ async function loadHistory(latest) {
     if (row) S.history.push({ ...row, tx: log.transactionHash });
   }
   // who sent each transaction
-  const unknown = [...new Set(S.history.map((r) => r.tx).filter((h) => !S.txFrom.has(h)))];
-  const txs = await Promise.all(unknown.map((h) => S.provider.getTransaction(h)));
+  const unknown = [
+    ...new Set(S.history.map((r) => r.tx).filter((h) => !S.txFrom.has(h))),
+  ];
+  const txs = await Promise.all(
+    unknown.map((h) => S.provider.getTransaction(h)),
+  );
   unknown.forEach((h, i) => S.txFrom.set(h, txs[i]?.from));
 }
 
@@ -511,11 +656,16 @@ async function loadHistory(latest) {
 function historyRow(ev) {
   const H = S.hctx;
   const a = ev.args;
-  const range = (id) => (H.ranges[id] ? `$${fmtNum(H.ranges[id].pa, 4)}–$${fmtNum(H.ranges[id].pb, 4)}` : "");
+  const range = (id) =>
+    H.ranges[id]
+      ? `$${fmtNum(H.ranges[id].pa, 4)}–$${fmtNum(H.ranges[id].pb, 4)}`
+      : "";
   // the ETH behind `units` of a position's liquidity, at the price of the moment
   const ethOf = (id, units) => {
     const r = H.ranges[id];
-    return r && H.price ? C.reserves({ ...r, L: Number(units) / 1e6 }, H.price).x : null;
+    return r && H.price
+      ? C.reserves({ ...r, L: Number(units) / 1e6 }, H.price).x
+      : null;
   };
   switch (ev.name) {
     case "PoolInitialized":
@@ -526,12 +676,27 @@ function historyRow(ev) {
       if (a.id !== S.poolId) return null;
       H.price = C.sqrtPriceToPrice(a.sqrtPriceX96);
       const buy = a.amount0 > 0n; // the trader's amounts: + received, - paid
-      return { what: buy ? "Buy" : "Sell", cls: buy ? "buy" : "sell", eth: toEth(abs(a.amount0)), usdc: toUsdc(abs(a.amount1)), price: H.price };
+      return {
+        what: buy ? "Buy" : "Sell",
+        cls: buy ? "buy" : "sell",
+        eth: toEth(abs(a.amount0)),
+        usdc: toUsdc(abs(a.amount1)),
+        price: H.price,
+      };
     }
     case "PositionMinted": {
       const id = Number(a.positionId);
-      H.ranges[id] = { pa: C.tickToPrice(Number(a.tickLower)), pb: C.tickToPrice(Number(a.tickUpper)) };
-      return { what: "Add liquidity", sub: `#${id} ${range(id)}`, eth: toEth(a.amount0), usdc: toUsdc(a.amount1), price: H.price };
+      H.ranges[id] = {
+        pa: C.tickToPrice(Number(a.tickLower)),
+        pb: C.tickToPrice(Number(a.tickUpper)),
+      };
+      return {
+        what: "Add liquidity",
+        sub: `#${id} ${range(id)}`,
+        eth: toEth(a.amount0),
+        usdc: toUsdc(a.amount1),
+        price: H.price,
+      };
     }
     case "LiquidityDecreased": {
       const [p0, p1] = splitDelta(a.principal);
@@ -547,26 +712,61 @@ function historyRow(ev) {
     case "Split": {
       const id = Number(a.positionId);
       H.seriesPos[Number(a.seriesId)] = id;
-      return { what: "Split ETH weight", sub: `#${id}`, eth: ethOf(id, a.units), price: H.price };
+      return {
+        what: "Split ETH weight",
+        sub: `#${id}`,
+        eth: ethOf(id, a.units),
+        price: H.price,
+      };
     }
     case "AuctionCreated": {
-      H.auctions[Number(a.auctionId)] = { seriesId: Number(a.seriesId), lot: a.lot };
-      return { what: "Open auction", sub: `#${H.seriesPos[Number(a.seriesId)]} · starts at`, usdc: toUsdc(a.startPrice), price: H.price };
+      H.auctions[Number(a.auctionId)] = {
+        seriesId: Number(a.seriesId),
+        lot: a.lot,
+      };
+      return {
+        what: "Open auction",
+        sub: `#${H.seriesPos[Number(a.seriesId)]} · starts at`,
+        usdc: toUsdc(a.startPrice),
+        price: H.price,
+      };
     }
     case "Bought": {
       const auction = H.auctions[Number(a.auctionId)];
       const id = auction && H.seriesPos[auction.seriesId];
-      const share = auction ? ` · ${fmtNum((Number(a.amount) / Number(auction.lot)) * 100, 1)}%` : "";
-      return { what: "Buy ETH weight", sub: `#${id}${share}`, eth: ethOf(id, a.amount), usdc: toUsdc(a.cost), price: H.price };
+      const share = auction
+        ? ` · ${fmtNum((Number(a.amount) / Number(auction.lot)) * 100, 1)}%`
+        : "";
+      return {
+        what: "Buy ETH weight",
+        sub: `#${id}${share}`,
+        eth: ethOf(id, a.amount),
+        usdc: toUsdc(a.cost),
+        price: H.price,
+      };
     }
     case "Cancelled": {
       const auction = H.auctions[Number(a.auctionId)];
-      return { what: "Cancel auction", sub: auction ? `#${H.seriesPos[auction.seriesId]}` : "", price: H.price };
+      return {
+        what: "Cancel auction",
+        sub: auction ? `#${H.seriesPos[auction.seriesId]}` : "",
+        price: H.price,
+      };
     }
     case "Exercised": // the ETH goes to the weight's holder, the USDC to the position's owner
-      return { what: "Exercise", sub: `#${H.seriesPos[Number(a.seriesId)]}`, eth: toEth(a.legAmount), usdc: toUsdc(a.otherAmount), price: H.price };
+      return {
+        what: "Exercise",
+        sub: `#${H.seriesPos[Number(a.seriesId)]}`,
+        eth: toEth(a.legAmount),
+        usdc: toUsdc(a.otherAmount),
+        price: H.price,
+      };
     case "Merged":
-      return { what: "Merge weight", sub: `#${H.seriesPos[Number(a.seriesId)]}`, price: H.price };
+      return {
+        what: "Merge weight",
+        sub: `#${H.seriesPos[Number(a.seriesId)]}`,
+        price: H.price,
+      };
     default:
       return null;
   }
@@ -639,13 +839,16 @@ function closePop() {
 // ---------------------------------------------------------------------------------------------------------------------
 // add liquidity
 // ---------------------------------------------------------------------------------------------------------------------
-const setField = (id, v) => ($(id).value = isFinite(v) ? String(+v.toPrecision(6)) : "");
+const setField = (id, v) =>
+  ($(id).value = isFinite(v) ? String(+v.toPrecision(6)) : "");
 
 let addSeq = 0;
 async function updateAddPreview() {
   const seq = ++addSeq;
   const out = $("add-preview");
-  ["add-value", "add-lo", "add-hi"].forEach((id) => $(id).classList.remove("invalid"));
+  ["add-value", "add-lo", "add-hi"].forEach((id) =>
+    $(id).classList.remove("invalid"),
+  );
   const fail = (msg, field) => {
     if (seq !== addSeq) return;
     if (field) $(field).classList.add("invalid");
@@ -668,7 +871,11 @@ async function updateAddPreview() {
     // (solved from the snapped tick, so snapping only moves the split by the other bound's rounding)
     if (S.lastEdited === "hi") {
       if (!(hi > 0)) return fail("The max price must be above $0.", "add-hi");
-      if (!(hi > P)) return fail(`For a 50/50 split the max price must be above today's $${fmtNum(P, 4)}.`, "add-hi");
+      if (!(hi > P))
+        return fail(
+          `For a 50/50 split the max price must be above today's $${fmtNum(P, 4)}.`,
+          "add-hi",
+        );
       tu = C.priceToTick(hi, spacing);
       lo = C.lowerFor5050(P, C.tickToPrice(tu));
       tl = C.priceToTick(lo, spacing);
@@ -676,7 +883,10 @@ async function updateAddPreview() {
     } else {
       if (!(lo > 0)) return fail("The min price must be above $0.", "add-lo");
       if (!isFinite(C.upperFor5050(P, lo))) {
-        return fail(`For a 50/50 split the min price must be between $${fmtNum(P / Math.E, 4)} and $${fmtNum(P, 4)}.`, "add-lo");
+        return fail(
+          `For a 50/50 split the min price must be between $${fmtNum(P / Math.E, 4)} and $${fmtNum(P, 4)}.`,
+          "add-lo",
+        );
       }
       tl = C.priceToTick(lo, spacing);
       hi = C.upperFor5050(P, C.tickToPrice(tl));
@@ -686,19 +896,27 @@ async function updateAddPreview() {
   } else {
     if (!(lo > 0)) return fail("The min price must be above $0.", "add-lo");
     if (!(hi > 0)) return fail("The max price must be above $0.", "add-hi");
-    if (!(hi > lo)) return fail("The max price must be above the min price.", "add-hi");
+    if (!(hi > lo))
+      return fail("The max price must be above the min price.", "add-hi");
     tl = C.priceToTick(lo, spacing);
     tu = C.priceToTick(hi, spacing);
   }
   $("add-hi").min = String(lo); // the spinner never steps the max below the min
-  if (tl >= tu) return fail("The range is narrower than one tick: widen it.", "add-hi");
+  if (tl >= tu)
+    return fail("The range is narrower than one tick: widen it.", "add-hi");
   if (!(value > 0)) return fail("Enter an amount above $0.", "add-value");
   const pa = C.tickToPrice(tl);
   const pb = C.tickToPrice(tu);
   const liquidity = BigInt(Math.floor((value / C.valuePerL(pa, pb, P)) * 1e6));
   if (liquidity <= 0n) return fail("That buys no liquidity on this range.");
   try {
-    const [amount0, amount1] = await S.c.hook.getAmountsForLiquidity(S.poolId, tl, tu, liquidity, true);
+    const [amount0, amount1] = await S.c.hook.getAmountsForLiquidity(
+      S.poolId,
+      tl,
+      tu,
+      liquidity,
+      true,
+    );
     if (seq !== addSeq) return;
     S.add = { tl, tu, liquidity, amount0, amount1 };
     S.addGhost = { id: "new", pa, pb, L: Number(liquidity) / 1e6 };
@@ -706,7 +924,9 @@ async function updateAddPreview() {
     const share = ethUsd / (ethUsd + toUsdc(amount1));
     out.innerHTML =
       `<b>${fEth(amount0)} ETH</b> <span class="sub">($${fmtNum(ethUsd, 2)})</span> + <b>${fUsdc(amount1)} USDC</b>` +
-      ($("add-5050").checked ? "" : ` <span class="sub">· ${Math.round(share * 100)}% ETH, 50/50 at $${fmtNum(C.fiftyFiftyPrice(pa, pb), 4)}</span>`);
+      ($("add-5050").checked
+        ? ""
+        : ` <span class="sub">· ${Math.round(share * 100)}% ETH, 50/50 at $${fmtNum(C.fiftyFiftyPrice(pa, pb), 4)}</span>`);
     $("add-button").disabled = false;
   } catch (e) {
     return fail(decodeError(e));
@@ -722,7 +942,12 @@ async function executeAdd() {
   const max1 = amount1 + amount1 / 1000n + 1n;
   if (!(await ensureUsdcAllowance(S.dep.vault, max1))) return;
   const receipt = await send("Add liquidity", () =>
-    call(S.c.vault, "mint", [S.key, tl, tu, liquidity, max0, max1, deadline()], { value: max0 })
+    call(
+      S.c.vault,
+      "mint",
+      [S.key, tl, tu, liquidity, max0, max1, deadline()],
+      { value: max0 },
+    ),
   );
   const ev = receipt && parseLogs(receipt, S.c.vault, "PositionMinted");
   if (ev) openSplit(Number(ev.args.positionId));
@@ -754,43 +979,76 @@ function updateSplit(resetPrices) {
   if (resetPrices) {
     // start at the most the weight can ever pay (its value at pa), fall to what exercising pays today
     $("auction-start").value = (L * (1 - pos.pa / pos.pb)).toFixed(2);
-    $("auction-floor").value = C.ethLegValue({ ...pos, L }, S.pool.price).toFixed(2);
+    $("auction-floor").value = C.ethLegValue(
+      { ...pos, L },
+      S.pool.price,
+    ).toFixed(2);
   }
   const lines = [
     { value: Number($("auction-start").value), label: "start" },
     { value: Number($("auction-floor").value), label: "floor" },
   ].filter((l) => l.value >= 0);
-  drawWeightPayoff($("payoff-chart"), { pa: pos.pa, pb: pos.pb, L, price: S.pool.price, lines });
+  drawWeightPayoff($("payoff-chart"), {
+    pa: pos.pa,
+    pb: pos.pb,
+    L,
+    price: S.pool.price,
+    lines,
+  });
 }
 
 async function doSplit() {
   const pos = S.positions.find((p) => p.id === S.splitFor);
   if (!pos) return;
-  const units = (pos.liquidity * BigInt(Math.round(splitShare() * 10000))) / 10000n;
+  const units =
+    (pos.liquidity * BigInt(Math.round(splitShare() * 10000))) / 10000n;
   const days = Number($("split-days").value);
   const announceMin = Number($("auction-announce").value);
   const dropMin = Number($("auction-drop").value);
   const startPrice = Number($("auction-start").value);
   const floorPrice = Number($("auction-floor").value);
-  if (!(Number($("split-share").value) > 0)) return toast("Choose a share of the position above 0%.", "err");
+  if (!(Number($("split-share").value) > 0))
+    return toast("Choose a share of the position above 0%.", "err");
   if (!(days > 0) || !(announceMin > 0) || !(dropMin > 0)) {
-    return toast("Expiry, announcement and price drop must all be above 0.", "err");
+    return toast(
+      "Expiry, announcement and price drop must all be above 0.",
+      "err",
+    );
   }
   if ((announceMin + dropMin) * 60 > days * 86400) {
-    return toast("The announcement and price drop must finish before the weight expires.", "err");
+    return toast(
+      "The announcement and price drop must finish before the weight expires.",
+      "err",
+    );
   }
   if (!(startPrice > 0) || !(floorPrice >= 0) || floorPrice > startPrice) {
-    return toast("The start price must be above 0 and at least the floor price.", "err");
+    return toast(
+      "The start price must be above 0 and at least the floor price.",
+      "err",
+    );
   }
   const duration = BigInt(Math.round(days * 86400));
   $("split-modal").classList.add("hidden");
-  const receipt = await send("Split off the ETH weight", () => call(S.c.vault, "split", [pos.id, units, 0, duration]));
+  const receipt = await send("Split off the ETH weight", () =>
+    call(S.c.vault, "split", [pos.id, units, 0, duration]),
+  );
   const ev = receipt && parseLogs(receipt, S.c.vault, "Split");
   if (!ev) return;
   const seriesId = ev.args.seriesId;
-  const start = ethers.parseUnits(Number($("auction-start").value).toFixed(6), 6);
-  const floor = ethers.parseUnits(Number($("auction-floor").value).toFixed(6), 6);
-  if (!(await send("Approve the weight", () => call(S.c.weights, "approve", [S.dep.auction, seriesId, units])))) return;
+  const start = ethers.parseUnits(
+    Number($("auction-start").value).toFixed(6),
+    6,
+  );
+  const floor = ethers.parseUnits(
+    Number($("auction-floor").value).toFixed(6),
+    6,
+  );
+  if (
+    !(await send("Approve the weight", () =>
+      call(S.c.weights, "approve", [S.dep.auction, seriesId, units]),
+    ))
+  )
+    return;
   await send("Start auction", () =>
     call(S.c.auction, "create", [
       seriesId,
@@ -800,14 +1058,19 @@ async function doSplit() {
       floor,
       BigInt(Math.round(announceMin * 60)),
       BigInt(Math.round(dropMin * 60)),
-    ])
+    ]),
   );
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // swaps: Buy/Sell x the unit typed (ETH or USDC) picks exact-in or exact-out
 // ---------------------------------------------------------------------------------------------------------------------
-const PLACEHOLDER = { buyETH: "ETH to buy", buyUSDC: "USDC to spend", sellETH: "ETH to sell", sellUSDC: "USDC to receive" };
+const PLACEHOLDER = {
+  buyETH: "ETH to buy",
+  buyUSDC: "USDC to spend",
+  sellETH: "ETH to sell",
+  sellUSDC: "USDC to receive",
+};
 const settings = { takeClaims: false, settleUsingBurn: false };
 
 function swapShape() {
@@ -824,8 +1087,11 @@ function swapShape() {
 function showQuote(shape, amountIn, amountOut, priceAfter) {
   const ethAmt = shape.zeroForOne ? amountIn : amountOut;
   const usdcAmt = shape.zeroForOne ? amountOut : amountIn;
-  const main = shape.exactIn ? `Get <b>${fmtNum(amountOut, 4)} ${shape.outToken}</b>` : `Pay <b>${fmtNum(amountIn, 4)} ${shape.inToken}</b>`;
-  $("swap-preview").innerHTML = `${main} <span class="sub">· avg $${fmtNum(usdcAmt / ethAmt, 4)} · price → $${fmtNum(priceAfter, 4)}</span>`;
+  const main = shape.exactIn
+    ? `Get <b>${fmtNum(amountOut, 4)} ${shape.outToken}</b>`
+    : `Pay <b>${fmtNum(amountIn, 4)} ${shape.inToken}</b>`;
+  $("swap-preview").innerHTML =
+    `${main} <span class="sub">· avg $${fmtNum(usdcAmt / ethAmt, 4)} · price → $${fmtNum(priceAfter, 4)}</span>`;
 }
 
 let quoteTimer = null;
@@ -839,13 +1105,25 @@ function updateSwapPreview() {
     $("swap-preview").innerHTML = "";
     return drawCharts();
   }
-  const sim = C.simulateSwap(S.positions, S.pool.price, shape.zeroForOne, shape.exactIn, amount);
+  const sim = C.simulateSwap(
+    S.positions,
+    S.pool.price,
+    shape.zeroForOne,
+    shape.exactIn,
+    amount,
+  );
   if (!sim.ok) {
     $("swap-preview").innerHTML = `<span class="bad">${sim.reason}</span>`;
     return drawCharts();
   }
   const key = `${S.side}|${S.unit}|${amount}`;
-  S.swapPreview = { ...sim, zeroForOne: shape.zeroForOne, exactIn: shape.exactIn, amount, key };
+  S.swapPreview = {
+    ...sim,
+    zeroForOne: shape.zeroForOne,
+    exactIn: shape.exactIn,
+    amount,
+    key,
+  };
   showQuote(shape, sim.amountIn, sim.amountOut, sim.price);
   drawCharts();
   // then replace the estimate with the chain's exact quote
@@ -853,29 +1131,50 @@ function updateSwapPreview() {
     const q = await quoteOnChain(shape, amount, sim);
     if (!q || S.swapPreview?.key !== key) return;
     const [e, u] = [toEth(abs(q.eth)), toUsdc(abs(q.usdc))];
-    showQuote(shape, shape.zeroForOne ? e : u, shape.zeroForOne ? u : e, sim.price);
+    showQuote(
+      shape,
+      shape.zeroForOne ? e : u,
+      shape.zeroForOne ? u : e,
+      sim.price,
+    );
   }, 250);
 }
 
 function swapArgs(shape, amount, sim) {
-  const amountRaw = shape.amountToken === "ETH" ? ethers.parseEther(amount.toFixed(18)) : ethers.parseUnits(amount.toFixed(6), 6);
+  const amountRaw =
+    shape.amountToken === "ETH"
+      ? ethers.parseEther(amount.toFixed(18))
+      : ethers.parseUnits(amount.toFixed(6), 6);
   const params = {
     zeroForOne: shape.zeroForOne,
     amountSpecified: shape.exactIn ? -amountRaw : amountRaw,
     sqrtPriceLimitX96: shape.zeroForOne ? MIN_PRICE_LIMIT : MAX_PRICE_LIMIT,
   };
   let value = 0n;
-  if (shape.zeroForOne) value = shape.exactIn ? amountRaw : ethers.parseEther((sim.amountIn * 1.02 + 1e-9).toFixed(18));
-  const maxUsdcIn = shape.zeroForOne ? 0n : ethers.parseUnits((sim.amountIn * 1.02 + 1).toFixed(6), 6);
+  if (shape.zeroForOne)
+    value = shape.exactIn
+      ? amountRaw
+      : ethers.parseEther((sim.amountIn * 1.02 + 1e-9).toFixed(18));
+  const maxUsdcIn = shape.zeroForOne
+    ? 0n
+    : ethers.parseUnits((sim.amountIn * 1.02 + 1).toFixed(6), 6);
   return { params, value, maxUsdcIn };
 }
 
 async function quoteOnChain(shape, amount, sim) {
   if (!S.me) return null;
   const { params, value, maxUsdcIn } = swapArgs(shape, amount, sim);
-  if (!shape.zeroForOne && (await S.c.usdc.allowance(S.me, S.dep.router)) < maxUsdcIn) return null;
+  if (
+    !shape.zeroForOne &&
+    (await S.c.usdc.allowance(S.me, S.dep.router)) < maxUsdcIn
+  )
+    return null;
   try {
-    const [d0, d1] = splitDelta(await S.c.router.swap.staticCall(S.key, params, settings, "0x", { value }));
+    const [d0, d1] = splitDelta(
+      await S.c.router.swap.staticCall(S.key, params, settings, "0x", {
+        value,
+      }),
+    );
     return { eth: d0, usdc: d1 };
   } catch {
     return null;
@@ -885,10 +1184,20 @@ async function quoteOnChain(shape, amount, sim) {
 async function executeSwap() {
   const shape = swapShape();
   const amount = Number($("swap-amount").value);
-  const sim = C.simulateSwap(S.positions, S.pool.price, shape.zeroForOne, shape.exactIn, amount);
+  const sim = C.simulateSwap(
+    S.positions,
+    S.pool.price,
+    shape.zeroForOne,
+    shape.exactIn,
+    amount,
+  );
   if (!sim.ok) return toast(sim.reason, "err");
   const { params, value, maxUsdcIn } = swapArgs(shape, amount, sim);
-  if (!shape.zeroForOne && !(await ensureUsdcAllowance(S.dep.router, maxUsdcIn))) return;
+  if (
+    !shape.zeroForOne &&
+    !(await ensureUsdcAllowance(S.dep.router, maxUsdcIn))
+  )
+    return;
   const amt = fmtNum(amount, 6);
   const label =
     shape.amountToken === "ETH"
@@ -896,7 +1205,9 @@ async function executeSwap() {
       : shape.zeroForOne
         ? `Sell ETH for ${amt} USDC`
         : `Buy ETH with ${amt} USDC`;
-  const receipt = await send(label, () => call(S.c.router, "swap", [S.key, params, settings, "0x"], { value }));
+  const receipt = await send(label, () =>
+    call(S.c.router, "swap", [S.key, params, settings, "0x"], { value }),
+  );
   if (receipt) {
     $("swap-amount").value = "";
     updateSwapPreview();
@@ -909,11 +1220,18 @@ async function executeSwap() {
 function wire() {
   $("connect").addEventListener("click", connectWallet);
   if (window.ethereum?.on) {
-    window.ethereum.on("accountsChanged", () => !S.local && S.me && connectWallet());
+    window.ethereum.on(
+      "accountsChanged",
+      () => !S.local && S.me && connectWallet(),
+    );
     window.ethereum.on("chainChanged", () => !S.local && location.reload());
   }
   $("faucet").addEventListener("click", () =>
-    exclusive(() => send("Mint 10,000 test USDC", () => call(S.c.usdc, "mint", [S.me, 10_000n * 10n ** 6n])))
+    exclusive(() =>
+      send("Mint 10,000 test USDC", () =>
+        call(S.c.usdc, "mint", [S.me, 10_000n * 10n ** 6n]),
+      ),
+    ),
   );
   $("account").addEventListener("change", async (e) => {
     setAccount(Number(e.target.value));
@@ -928,8 +1246,8 @@ function wire() {
         await S.provider.send("evm_mine", []);
         toast(`Clock moved ${b.textContent}`, "ok");
         await scheduleRefresh();
-      })
-    )
+      }),
+    ),
   );
 
   document.querySelectorAll("input[type=number]").forEach((el) => {
@@ -945,8 +1263,14 @@ function wire() {
     clearTimeout(addTimer);
     addTimer = setTimeout(updateAddPreview, 150);
   };
-  $("add-lo").addEventListener("input", () => ((S.lastEdited = "lo"), addChanged()));
-  $("add-hi").addEventListener("input", () => ((S.lastEdited = "hi"), addChanged()));
+  $("add-lo").addEventListener(
+    "input",
+    () => ((S.lastEdited = "lo"), addChanged()),
+  );
+  $("add-hi").addEventListener(
+    "input",
+    () => ((S.lastEdited = "hi"), addChanged()),
+  );
   $("add-value").addEventListener("input", addChanged);
   $("add-5050").addEventListener("change", addChanged);
   $("add-form").addEventListener("submit", (e) => {
@@ -961,13 +1285,30 @@ function wire() {
     }
   };
   addForm.addEventListener("mouseenter", () => setAddActive(true));
-  addForm.addEventListener("mouseleave", () => setAddActive(addForm.contains(document.activeElement)));
+  addForm.addEventListener("mouseleave", () =>
+    setAddActive(addForm.contains(document.activeElement)),
+  );
   addForm.addEventListener("focusin", () => setAddActive(true));
-  addForm.addEventListener("focusout", () => setTimeout(() => setAddActive(addForm.matches(":hover") || addForm.contains(document.activeElement)), 0));
+  addForm.addEventListener("focusout", () =>
+    setTimeout(
+      () =>
+        setAddActive(
+          addForm.matches(":hover") || addForm.contains(document.activeElement),
+        ),
+      0,
+    ),
+  );
 
   // liquidity chart: hover highlights a position, click opens its pop-over
   const liq = $("liq-chart");
-  const hitAt = (e) => S.hits.find((r) => e.offsetX >= r.x0 && e.offsetX <= r.x1 && e.offsetY >= r.y0 && e.offsetY <= r.y1);
+  const hitAt = (e) =>
+    S.hits.find(
+      (r) =>
+        e.offsetX >= r.x0 &&
+        e.offsetX <= r.x1 &&
+        e.offsetY >= r.y0 &&
+        e.offsetY <= r.y1,
+    );
   liq.addEventListener("mousemove", (e) => {
     const id = hitAt(e)?.id;
     if (id !== S.hoverId) {
@@ -1002,7 +1343,15 @@ function wire() {
     closePop();
     if (b.dataset.act === "split") return openSplit(pos.id);
     exclusive(() =>
-      send(`Withdraw position #${pos.id}`, () => call(S.c.vault, "decreaseLiquidity", [pos.id, pos.liquidity - pos.locked, 0, 0, deadline()]))
+      send(`Withdraw position #${pos.id}`, () =>
+        call(S.c.vault, "decreaseLiquidity", [
+          pos.id,
+          pos.liquidity - pos.locked,
+          0,
+          0,
+          deadline(),
+        ]),
+      ),
     );
   });
 
@@ -1010,12 +1359,15 @@ function wire() {
   $("split-share").addEventListener("input", () => updateSplit(true));
   $("auction-start").addEventListener("input", () => updateSplit(false));
   $("auction-floor").addEventListener("input", () => updateSplit(false));
-  $("split-cancel").addEventListener("click", () => $("split-modal").classList.add("hidden"));
+  $("split-cancel").addEventListener("click", () =>
+    $("split-modal").classList.add("hidden"),
+  );
   $("split-auction").addEventListener("click", () => exclusive(doSplit));
 
   // weights: buy / cancel auctions, exercise / merge weights
   $("weights").addEventListener("input", (e) => {
-    if (e.target.dataset.auction) S.buyPct[e.target.dataset.auction] = e.target.value;
+    if (e.target.dataset.auction)
+      S.buyPct[e.target.dataset.auction] = e.target.value;
   });
   $("weights").addEventListener("click", (e) => {
     const b = e.target.closest("button[data-act]");
@@ -1036,19 +1388,27 @@ function wire() {
   async function weightAction(b) {
     if (b.dataset.act === "exercise" || b.dataset.act === "merge") {
       const s = S.series.find((x) => x.id === Number(b.dataset.series));
-      if (b.dataset.act === "merge") return send("Merge the weight back", () => call(S.c.vault, "merge", [s.id, s.balance]));
+      if (b.dataset.act === "merge")
+        return send("Merge the weight back", () =>
+          call(S.c.vault, "merge", [s.id, s.balance]),
+        );
       const minLeg = s.preview.leg - s.preview.leg / 200n; // accept 0.5% less if the price moves before inclusion
-      return send("Exercise", () => call(S.c.vault, "exercise", [s.id, s.balance, minLeg, deadline()]));
+      return send("Exercise", () =>
+        call(S.c.vault, "exercise", [s.id, s.balance, minLeg, deadline()]),
+      );
     }
     const a = S.auctions.find((x) => x.id === Number(b.dataset.auction));
-    if (b.dataset.act === "cancel") return send("Cancel auction", () => call(S.c.auction, "cancel", [a.id]));
+    if (b.dataset.act === "cancel")
+      return send("Cancel auction", () => call(S.c.auction, "cancel", [a.id]));
     // the share comes from state: the refresh that precedes every action re-renders this list
     const share = Math.min(Math.max(Number(S.buyPct[a.id] ?? 100), 0.01), 100);
     const amount = (a.remaining * BigInt(Math.round(share * 100))) / 10000n;
     const cost = await S.c.auction.quote(a.id, amount);
     const maxCost = cost + cost / 100n + 1n; // the price only falls, so this is generous
     if (!(await ensureUsdcAllowance(S.dep.auction, maxCost))) return;
-    await send(`Buy ${fmtNum(share, 2)}% of the weight`, () => call(S.c.auction, "buy", [a.id, amount, maxCost]));
+    await send(`Buy ${fmtNum(share, 2)}% of the weight`, () =>
+      call(S.c.auction, "buy", [a.id, amount, maxCost]),
+    );
   }
 
   // swap
@@ -1056,7 +1416,9 @@ function wire() {
     $(id).addEventListener("click", (e) => {
       const b = e.target.closest("button");
       if (!b) return;
-      $(id).querySelectorAll("button").forEach((x) => x.classList.toggle("on", x === b));
+      $(id)
+        .querySelectorAll("button")
+        .forEach((x) => x.classList.toggle("on", x === b));
       S[key] = b.dataset[key];
       updateSwapPreview();
     });

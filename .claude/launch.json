@@ -1,17 +1,17 @@
 {
-  "version": "0.0.1",
-  "configurations": [
-    {
-      "name": "anvil",
-      "runtimeExecutable": "anvil",
-      "runtimeArgs": ["--port", "8545"],
-      "port": 8545
-    },
-    {
-      "name": "frontend",
-      "runtimeExecutable": "python",
-      "runtimeArgs": ["frontend/serve.py"],
-      "port": 5173
-    }
-  ]
+	"version": "0.0.1",
+	"configurations": [
+		{
+			"name": "anvil",
+			"runtimeExecutable": "anvil",
+			"runtimeArgs": ["--port", "8545"],
+			"port": 8545
+		},
+		{
+			"name": "frontend",
+			"runtimeExecutable": "python",
+			"runtimeArgs": ["frontend/serve.py"],
+			"port": 5173
+		}
+	]
 }

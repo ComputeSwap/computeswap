@@ -3,7 +3,8 @@ import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.m
 
 export { ethers };
 
-const KEY = "tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)";
+const KEY =
+  "tuple(address currency0, address currency1, uint24 fee, int24 tickSpacing, address hooks)";
 
 // every custom error the stack can revert with, so failures show a readable reason
 const ERRORS = [
@@ -130,25 +131,36 @@ const errorInterface = new ethers.Interface(ERRORS);
 // what each revert means for the person using the page
 const FRIENDLY = {
   DeadlinePassed: "The transaction was mined after its deadline. Try again.",
-  SlippageExceeded: "The price moved before your transaction was mined, by more than the allowed slippage. Try again.",
-  Slippage: "The price moved before your transaction was mined, by more than the allowed slippage. Try again.",
-  SwapNotFullyFilled: "The pool doesn't have enough liquidity to fill this swap.",
-  NotEnoughLiquidity: "The pool doesn't have enough liquidity to fill this swap.",
-  PriceLimitAlreadyExceeded: "The price is already past the swap's price limit.",
-  OracleDeviation: "The price moved too fast: exercising opens once it is within about 1% of its 10-minute average.",
-  LiquidityLocked: "Part of this position is locked by its sold ETH weight until the weight expires.",
+  SlippageExceeded:
+    "The price moved before your transaction was mined, by more than the allowed slippage. Try again.",
+  Slippage:
+    "The price moved before your transaction was mined, by more than the allowed slippage. Try again.",
+  SwapNotFullyFilled:
+    "The pool doesn't have enough liquidity to fill this swap.",
+  NotEnoughLiquidity:
+    "The pool doesn't have enough liquidity to fill this swap.",
+  PriceLimitAlreadyExceeded:
+    "The price is already past the swap's price limit.",
+  OracleDeviation:
+    "The price moved too fast: exercising opens once it is within about 1% of its 10-minute average.",
+  LiquidityLocked:
+    "Part of this position is locked by its sold ETH weight until the weight expires.",
   SeriesExpired: "This ETH weight has expired.",
   SeriesStillActive: "This position already has a live ETH weight.",
-  InvalidSplit: "Choose a share of the position above 0% and an expiry above 0 days.",
-  AnnouncementActive: "The auction hasn't started yet. Wait until the price begins to fall.",
+  InvalidSplit:
+    "Choose a share of the position above 0% and an expiry above 0 days.",
+  AnnouncementActive:
+    "The auction hasn't started yet. Wait until the price begins to fall.",
   AuctionClosed: "This auction is closed: sold out, cancelled or expired.",
   TooExpensive: "The auction price is above your limit.",
   OutlivesWeights: "The auction must end before the weight expires.",
-  InvalidAuction: "The start price must be at least the floor price, and the auction must last some time.",
+  InvalidAuction:
+    "The start price must be at least the floor price, and the auction must last some time.",
   NotSeller: "Only the seller can cancel this auction.",
   NotOwnerOrApproved: "Only the position's owner can do this.",
   InsufficientBalance: "Not enough balance.",
-  TransferFromFailed: "A token transfer failed: check your balance and approval.",
+  TransferFromFailed:
+    "A token transfer failed: check your balance and approval.",
   TransferFailed: "A token transfer failed.",
   ETHTransferFailed: "An ETH transfer failed.",
   InsufficientNativeValue: "Not enough ETH was sent with the transaction.",
@@ -163,24 +175,40 @@ const FRIENDLY = {
 
 /** Readable reason for a failed call, unwrapping the PoolManager's WrappedError around hook reverts. */
 export function decodeError(err) {
-  if (err?.code === "ACTION_REJECTED" || err?.info?.error?.code === 4001) return "You rejected the request in your wallet.";
-  if (err?.code === "INSUFFICIENT_FUNDS") return "Not enough ETH for this transaction and its gas.";
+  if (err?.code === "ACTION_REJECTED" || err?.info?.error?.code === 4001) {
+    return "You rejected the request in your wallet.";
+  }
+  if (err?.code === "INSUFFICIENT_FUNDS") {
+    return "Not enough ETH for this transaction and its gas.";
+  }
   const data = findRevertData(err);
-  if (data) return describe(data);
+  if (data) {
+    return describe(data);
+  }
   return err?.shortMessage || err?.reason || err?.message || String(err);
 }
 
 function describe(data) {
-  if (!data || data === "0x") return "reverted without a reason";
+  if (!data || data === "0x") {
+    return "reverted without a reason";
+  }
   try {
     const parsed = errorInterface.parseError(data);
-    if (parsed.name === "WrappedError") return describe(parsed.args.reason);
+    if (parsed.name === "WrappedError") {
+      return describe(parsed.args.reason);
+    }
     const args = parsed.args.map((a) => a.toString()).join(", ");
     const raw = `${parsed.name}(${args})`;
     return FRIENDLY[parsed.name] ? `${FRIENDLY[parsed.name]} [${raw}]` : raw;
   } catch {
     try {
-      return "Error: " + ethers.AbiCoder.defaultAbiCoder().decode(["string"], "0x" + data.slice(10))[0];
+      return (
+        "Error: " +
+        ethers.AbiCoder.defaultAbiCoder().decode(
+          ["string"],
+          "0x" + data.slice(10),
+        )[0]
+      );
     } catch {
       return `reverted with data ${data.slice(0, 74)}`;
     }
@@ -192,10 +220,22 @@ function findRevertData(err) {
   const stack = [err];
   while (stack.length) {
     const e = stack.pop();
-    if (!e || typeof e !== "object" || seen.has(e)) continue;
+    if (!e || typeof e !== "object" || seen.has(e)) {
+      continue;
+    }
     seen.add(e);
-    if (typeof e.data === "string" && e.data.startsWith("0x") && e.data.length >= 10) return e.data;
-    for (const k of ["error", "info", "data", "cause"]) if (e[k] && typeof e[k] === "object") stack.push(e[k]);
+    if (
+      typeof e.data === "string" &&
+      e.data.startsWith("0x") &&
+      e.data.length >= 10
+    ) {
+      return e.data;
+    }
+    for (const k of ["error", "info", "data", "cause"]) {
+      if (e[k] && typeof e[k] === "object") {
+        stack.push(e[k]);
+      }
+    }
   }
   return null;
 }

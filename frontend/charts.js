@@ -5,7 +5,14 @@ import * as C from "./curve.js";
 function theme() {
   const cs = getComputedStyle(document.documentElement);
   const v = (name) => cs.getPropertyValue(name).trim();
-  return { fg: v("--fg"), muted: v("--muted"), line: v("--line"), green: v("--green"), navy: v("--navy"), bg: v("--bg") };
+  return {
+    fg: v("--fg"),
+    muted: v("--muted"),
+    line: v("--line"),
+    green: v("--green"),
+    navy: v("--navy"),
+    bg: v("--bg"),
+  };
 }
 
 function setup(canvas) {
@@ -25,32 +32,44 @@ export function fmtNum(v, digits = 4) {
   if (!isFinite(v)) return "–";
   const a = Math.abs(v);
   if (a !== 0 && (a < 1e-3 || a >= 1e7)) return v.toExponential(2);
-  return v.toLocaleString(undefined, { maximumFractionDigits: a >= 100 ? 2 : digits });
+  return v.toLocaleString(undefined, {
+    maximumFractionDigits: a >= 100 ? 2 : digits,
+  });
 }
 
 function niceTicks(min, max, count = 4) {
   const raw = (max - min) / count;
-  const p = Math.pow(10, Math.floor(Math.log10(raw)));
+  const p = 10 ** Math.floor(Math.log10(raw));
   const m = raw / p;
   const step = (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
   const ticks = [];
-  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9 * step; v += step) ticks.push(v);
+  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9 * step; v += step)
+    ticks.push(v);
   return ticks;
 }
 
 function logTicks(min, max) {
   const ticks = [];
-  for (let e = Math.floor(Math.log10(min)) - 1; e <= Math.ceil(Math.log10(max)); e++) {
+  for (
+    let e = Math.floor(Math.log10(min)) - 1;
+    e <= Math.ceil(Math.log10(max));
+    e++
+  ) {
     for (const m of [1, 2, 5]) {
-      const v = m * Math.pow(10, e);
+      const v = m * 10 ** e;
       if (v >= min && v <= max) ticks.push(v);
     }
   }
   if (ticks.length < 3) {
-    for (const m of [1.5, 3, 4, 7]) for (let e = Math.floor(Math.log10(min)); e <= Math.ceil(Math.log10(max)); e++) {
-      const v = m * Math.pow(10, e);
-      if (v >= min && v <= max) ticks.push(v);
-    }
+    for (const m of [1.5, 3, 4, 7])
+      for (
+        let e = Math.floor(Math.log10(min));
+        e <= Math.ceil(Math.log10(max));
+        e++
+      ) {
+        const v = m * 10 ** e;
+        if (v >= min && v <= max) ticks.push(v);
+      }
     ticks.sort((a, b) => a - b);
   }
   return ticks;
@@ -60,8 +79,10 @@ function text(ctx, str, x, y, color, align = "left") {
   // keep labels inside the canvas
   const width = ctx.measureText(str).width;
   const right = ctx.canvas.clientWidth - 4;
-  const left0 = align === "right" ? x - width : align === "center" ? x - width / 2 : x;
-  x += left0 + width > right ? right - (left0 + width) : left0 < 4 ? 4 - left0 : 0;
+  const left0 =
+    align === "right" ? x - width : align === "center" ? x - width / 2 : x;
+  x +=
+    left0 + width > right ? right - (left0 + width) : left0 < 4 ? 4 - left0 : 0;
   ctx.textAlign = align;
   ctx.fillStyle = color;
   ctx.fillText(str, x, y);
@@ -82,7 +103,7 @@ function dot(ctx, x, y, r, fill, stroke) {
 
 function logSpace(a, b, n) {
   const out = [];
-  for (let i = 0; i <= n; i++) out.push(a * Math.pow(b / a, i / n));
+  for (let i = 0; i <= n; i++) out.push(a * (b / a) ** (i / n));
   return out;
 }
 
@@ -106,7 +127,8 @@ function baseline(ctx, t, x0, y0, x1, y1) {
 export function drawReserves(canvas, { positions, price, preview }) {
   const { ctx, w, h } = setup(canvas);
   const t = theme();
-  if (!positions.length || !price) return empty(ctx, w, h, t, "No liquidity yet");
+  if (!positions.length || !price)
+    return empty(ctx, w, h, t, "No liquidity yet");
 
   const pad = { l: 44, r: 12, t: 12, b: 26 };
   const W = w - pad.l - pad.r;
@@ -118,17 +140,29 @@ export function drawReserves(canvas, { positions, price, preview }) {
   const curve = logSpace(pMin, pMax, 300).map((P) => C.totals(positions, P));
   const xs = curve.map((r) => r.x);
   const ys = curve.map((r) => r.y);
-  let [xMin, xMax, yMin, yMax] = [Math.min(...xs), Math.max(...xs), Math.min(...ys), Math.max(...ys)];
+  let [xMin, xMax, yMin, yMax] = [
+    Math.min(...xs),
+    Math.max(...xs),
+    Math.min(...ys),
+    Math.max(...ys),
+  ];
   const xPad = (xMax - xMin) * 0.06 || 1;
   const yPad = (yMax - yMin) * 0.06 || 1;
-  [xMin, xMax, yMin, yMax] = [Math.max(0, xMin - xPad), xMax + xPad, Math.max(0, yMin - yPad), yMax + yPad];
+  [xMin, xMax, yMin, yMax] = [
+    Math.max(0, xMin - xPad),
+    xMax + xPad,
+    Math.max(0, yMin - yPad),
+    yMax + yPad,
+  ];
   const sx = (x) => pad.l + ((x - xMin) / (xMax - xMin)) * W;
   const sy = (y) => pad.t + H - ((y - yMin) / (yMax - yMin)) * H;
 
   baseline(ctx, t, pad.l, pad.t + H, pad.l + W, pad.t + H);
   baseline(ctx, t, pad.l, pad.t, pad.l, pad.t + H);
-  for (const v of niceTicks(xMin, xMax)) text(ctx, fmtNum(v, 1), sx(v), pad.t + H + 15, t.muted, "center");
-  for (const v of niceTicks(yMin, yMax)) text(ctx, fmtNum(v, 1), pad.l - 6, sy(v) + 4, t.muted, "right");
+  for (const v of niceTicks(xMin, xMax))
+    text(ctx, fmtNum(v, 1), sx(v), pad.t + H + 15, t.muted, "center");
+  for (const v of niceTicks(yMin, yMax))
+    text(ctx, fmtNum(v, 1), pad.l - 6, sy(v) + 4, t.muted, "right");
   text(ctx, "ETH", pad.l + W, pad.t + H - 6, t.muted, "right");
   text(ctx, "USDC", pad.l + 6, pad.t + 10, t.muted, "left");
 
@@ -139,19 +173,31 @@ export function drawReserves(canvas, { positions, price, preview }) {
   ctx.strokeStyle = t.navy;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  curve.forEach((r, i) => (i ? ctx.lineTo(sx(r.x), sy(r.y)) : ctx.moveTo(sx(r.x), sy(r.y))));
+  curve.forEach((r, i) =>
+    i ? ctx.lineTo(sx(r.x), sy(r.y)) : ctx.moveTo(sx(r.x), sy(r.y)),
+  );
   ctx.stroke();
 
   const now = C.totals(positions, price);
   if (preview && preview.ok) {
-    const path = logSpace(price, preview.price, 60).map((P) => C.totals(positions, P));
+    const path = logSpace(price, preview.price, 60).map((P) =>
+      C.totals(positions, P),
+    );
     ctx.strokeStyle = t.green;
     ctx.lineWidth = 4;
     ctx.beginPath();
-    path.forEach((r, i) => (i ? ctx.lineTo(sx(r.x), sy(r.y)) : ctx.moveTo(sx(r.x), sy(r.y))));
+    path.forEach((r, i) =>
+      i ? ctx.lineTo(sx(r.x), sy(r.y)) : ctx.moveTo(sx(r.x), sy(r.y)),
+    );
     ctx.stroke();
     for (const f of [0.25, 0.5, 0.75]) {
-      const s = C.simulateSwap(positions, price, preview.zeroForOne, preview.exactIn, preview.amount * f);
+      const s = C.simulateSwap(
+        positions,
+        price,
+        preview.zeroForOne,
+        preview.exactIn,
+        preview.amount * f,
+      );
       if (s.ok) {
         const r = C.totals(positions, s.price);
         dot(ctx, sx(r.x), sy(r.y), 3.5, t.green);
@@ -160,11 +206,25 @@ export function drawReserves(canvas, { positions, price, preview }) {
     const end = C.totals(positions, preview.price);
     dot(ctx, sx(end.x), sy(end.y), 6, t.bg, t.green);
     const below = preview.price < price; // selling ETH moves down the curve
-    text(ctx, `$${fmtNum(preview.price, 4)}`, sx(end.x) + (below ? 10 : -10), sy(end.y) + (below ? 16 : -10), t.green, below ? "left" : "right");
+    text(
+      ctx,
+      `$${fmtNum(preview.price, 4)}`,
+      sx(end.x) + (below ? 10 : -10),
+      sy(end.y) + (below ? 16 : -10),
+      t.green,
+      below ? "left" : "right",
+    );
   }
   dot(ctx, sx(now.x), sy(now.y), 5, t.fg);
   const below = preview && preview.ok && preview.price < price;
-  text(ctx, `$${fmtNum(price, 4)}`, sx(now.x) + 10, sy(now.y) + (below ? -8 : 16), t.fg, "left");
+  text(
+    ctx,
+    `$${fmtNum(price, 4)}`,
+    sx(now.x) + 10,
+    sy(now.y) + (below ? -8 : 16),
+    t.fg,
+    "left",
+  );
   ctx.restore();
 }
 
@@ -173,7 +233,10 @@ export function drawReserves(canvas, { positions, price, preview }) {
 // is held as USDC (green, the band's area there is exactly its USDC), right of it as ETH (navy).
 // Returns the bands' rectangles for hit-testing.
 // ---------------------------------------------------------------------------------------------------------------------
-export function drawLiquidity(canvas, { positions, price, previewPrice, ghost, hoverId }) {
+export function drawLiquidity(
+  canvas,
+  { positions, price, previewPrice, ghost, hoverId },
+) {
   const { ctx, w, h } = setup(canvas);
   const t = theme();
   const all = ghost ? [...positions, ghost] : positions;
@@ -187,13 +250,18 @@ export function drawLiquidity(canvas, { positions, price, previewPrice, ghost, h
   const pMin = Math.min(price, ...all.map((p) => p.pa)) / 1.25;
   const pMax = Math.max(price, ...all.map((p) => p.pb)) * 1.25;
   const lx = (P) => pad.l + (Math.log(P / pMin) / Math.log(pMax / pMin)) * W;
-  const edges = [...new Set(all.flatMap((p) => [p.pa, p.pb]))].sort((a, b) => a - b);
+  const edges = [...new Set(all.flatMap((p) => [p.pa, p.pb]))].sort(
+    (a, b) => a - b,
+  );
   const segments = [];
   let yMax = 0;
   for (let i = 0; i + 1 < edges.length; i++) {
     const mid = Math.sqrt(edges[i] * edges[i + 1]);
     const stack = all.filter((p) => p.pa <= mid && mid < p.pb);
-    yMax = Math.max(yMax, stack.reduce((s, p) => s + p.L, 0));
+    yMax = Math.max(
+      yMax,
+      stack.reduce((s, p) => s + p.L, 0),
+    );
     segments.push({ lo: edges[i], hi: edges[i + 1], stack });
   }
   yMax = (yMax || 1) * 1.1;
@@ -201,7 +269,8 @@ export function drawLiquidity(canvas, { positions, price, previewPrice, ghost, h
   const px = lx(price);
 
   baseline(ctx, t, pad.l, pad.t + H, pad.l + W, pad.t + H);
-  for (const v of logTicks(pMin, pMax)) text(ctx, "$" + fmtNum(v, 2), lx(v), pad.t + H + 15, t.muted, "center");
+  for (const v of logTicks(pMin, pMax))
+    text(ctx, "$" + fmtNum(v, 2), lx(v), pad.t + H + 15, t.muted, "center");
 
   const hits = [];
   for (const seg of segments) {
@@ -280,12 +349,15 @@ export function drawWeightPayoff(canvas, { pa, pb, L, price, lines = [] }) {
   const pMax = Math.max(pb, price) * 1.15;
   // on a narrow range the pa and pb labels would overlap: then pb goes on a second row
   const gap = ((pb - pa) / pMax) * (w - 28);
-  const stacked = gap < (ctx.measureText(labelA).width + ctx.measureText(labelB).width) / 2 + 18;
+  const stacked =
+    gap <
+    (ctx.measureText(labelA).width + ctx.measureText(labelB).width) / 2 + 18;
   const pad = { l: 14, r: 14, t: 18, b: stacked ? 34 : 22 };
   const W = w - pad.l - pad.r;
   const H = h - pad.t - pad.b;
   const peak = L * (1 - pa / pb);
-  const value = (P) => (P <= pa ? L * (P / pa) * (1 - pa / pb) : P < pb ? L * (1 - P / pb) : 0);
+  const value = (P) =>
+    P <= pa ? L * (P / pa) * (1 - pa / pb) : P < pb ? L * (1 - P / pb) : 0;
   const vMax = Math.max(peak, ...lines.map((l) => l.value)) * 1.12 || 1;
   const sx = (P) => pad.l + (P / pMax) * W;
   const sy = (v) => pad.t + H - (v / vMax) * H;
@@ -294,8 +366,17 @@ export function drawWeightPayoff(canvas, { pa, pb, L, price, lines = [] }) {
   const boxes = [];
   const place = (str, x, y, color, align = "left") => {
     const tw = ctx.measureText(str).width;
-    const left = Math.min(Math.max(align === "right" ? x - tw : align === "center" ? x - tw / 2 : x, 4), w - 4 - tw);
-    const free = (yy) => !boxes.some((b) => left < b.r && left + tw > b.l && yy - 10 < b.b && yy + 2 > b.t);
+    const left = Math.min(
+      Math.max(
+        align === "right" ? x - tw : align === "center" ? x - tw / 2 : x,
+        4,
+      ),
+      w - 4 - tw,
+    );
+    const free = (yy) =>
+      !boxes.some(
+        (b) => left < b.r && left + tw > b.l && yy - 10 < b.b && yy + 2 > b.t,
+      );
     const yy = [0, -13, 13, -26, 26].map((d) => y + d).find(free) ?? y;
     boxes.push({ l: left - 3, r: left + tw + 3, t: yy - 10, b: yy + 2 });
     ctx.textAlign = "left";
@@ -352,10 +433,22 @@ export function drawWeightPayoff(canvas, { pa, pb, L, price, lines = [] }) {
   const vNow = value(price);
   dot(ctx, sx(price), sy(vNow), 4.5, t.green);
   const right = price > (pa + pb) / 2;
-  place(`now $${fmtNum(price, 4)} → $${fmtNum(vNow, 2)}`, sx(price) + (right ? -8 : 8), sy(vNow) + (vNow > peak * 0.8 ? 16 : -8), t.green, right ? "right" : "left");
+  place(
+    `now $${fmtNum(price, 4)} → $${fmtNum(vNow, 2)}`,
+    sx(price) + (right ? -8 : 8),
+    sy(vNow) + (vNow > peak * 0.8 ? 16 : -8),
+    t.green,
+    right ? "right" : "left",
+  );
   // reference labels go where the payoff is low: the left edge if the rising side is shallow, else the right edge
   const left = sx(pa) - pad.l > 0.35 * W;
   for (const l of lines) {
-    place(`${l.label} $${fmtNum(l.value, 2)}`, left ? pad.l + 2 : pad.l + W, sy(l.value) - 5, t.muted, left ? "left" : "right");
+    place(
+      `${l.label} $${fmtNum(l.value, 2)}`,
+      left ? pad.l + 2 : pad.l + W,
+      sy(l.value) - 5,
+      t.muted,
+      left ? "left" : "right",
+    );
   }
 }

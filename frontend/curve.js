@@ -32,7 +32,9 @@ export function ethLegValue(pos, P) {
 }
 
 function boundaries(positions) {
-  return [...new Set(positions.flatMap((p) => [p.pa, p.pb]))].sort((a, b) => a - b);
+  return [...new Set(positions.flatMap((p) => [p.pa, p.pb]))].sort(
+    (a, b) => a - b,
+  );
 }
 
 /**
@@ -40,7 +42,14 @@ function boundaries(positions) {
  * zeroForOne = sell ETH for USDC. exactIn: `amount` is the input including the fee; otherwise the desired output.
  * Returns { ok, price, amountIn, amountOut, fee } or { ok: false, reason }.
  */
-export function simulateSwap(positions, P, zeroForOne, exactIn, amount, fee = FEE) {
+export function simulateSwap(
+  positions,
+  P,
+  zeroForOne,
+  exactIn,
+  amount,
+  fee = FEE,
+) {
   if (!(amount > 0)) return { ok: false, reason: "enter an amount" };
   const edges = boundaries(positions);
   let remaining = amount;
@@ -48,8 +57,14 @@ export function simulateSwap(positions, P, zeroForOne, exactIn, amount, fee = FE
   let totalOut = 0;
   let feeTotal = 0;
   for (let guard = 0; remaining > amount * 1e-12 && guard < 500; guard++) {
-    const candidates = zeroForOne ? edges.filter((e) => e < P * (1 - 1e-12)) : edges.filter((e) => e > P * (1 + 1e-12));
-    if (candidates.length === 0) return { ok: false, reason: "not enough liquidity: the swap would leave every range" };
+    const candidates = zeroForOne
+      ? edges.filter((e) => e < P * (1 - 1e-12))
+      : edges.filter((e) => e > P * (1 + 1e-12));
+    if (candidates.length === 0)
+      return {
+        ok: false,
+        reason: "not enough liquidity: the swap would leave every range",
+      };
     const next = zeroForOne ? Math.max(...candidates) : Math.min(...candidates);
     const mid = Math.sqrt(P * next);
     const L = activeLiquidity(positions, mid);
@@ -68,7 +83,12 @@ export function simulateSwap(positions, P, zeroForOne, exactIn, amount, fee = FE
     if (exactIn) {
       const need = curveIn / (1 - fee);
       if (remaining >= need) {
-        [stepIn, stepOut, stepFee, Pn] = [curveIn, curveOut, need - curveIn, next];
+        [stepIn, stepOut, stepFee, Pn] = [
+          curveIn,
+          curveOut,
+          need - curveIn,
+          next,
+        ];
       } else {
         stepIn = remaining * (1 - fee);
         stepFee = remaining - stepIn;
@@ -81,7 +101,9 @@ export function simulateSwap(positions, P, zeroForOne, exactIn, amount, fee = FE
         [stepOut, stepIn, Pn] = [curveOut, curveIn, next];
       } else {
         stepOut = remaining;
-        Pn = zeroForOne ? P * Math.exp(-stepOut / L) : 1 / (1 / P - stepOut / L);
+        Pn = zeroForOne
+          ? P * Math.exp(-stepOut / L)
+          : 1 / (1 / P - stepOut / L);
         stepIn = zeroForOne ? L * (1 / Pn - 1 / P) : L * Math.log(Pn / P);
       }
       stepFee = (stepIn * fee) / (1 - fee);
@@ -92,7 +114,13 @@ export function simulateSwap(positions, P, zeroForOne, exactIn, amount, fee = FE
     feeTotal += stepFee;
     P = Pn;
   }
-  return { ok: true, price: P, amountIn: totalIn, amountOut: totalOut, fee: feeTotal };
+  return {
+    ok: true,
+    price: P,
+    amountIn: totalIn,
+    amountOut: totalOut,
+    fee: feeTotal,
+  };
 }
 
 // --- 50 / 50 ranges ----------------------------------------------------------------------------------------------
@@ -145,7 +173,7 @@ export function valuePerL(pa, pb, P) {
 export const DECIMAL_SHIFT = 1e12; // human price = raw price * 10^(18 - 6)
 
 export function tickToPrice(tick) {
-  return Math.pow(1.0001, tick) * DECIMAL_SHIFT;
+  return 1.0001 ** tick * DECIMAL_SHIFT;
 }
 
 export function priceToTick(price, spacing) {
