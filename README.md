@@ -2,7 +2,7 @@
 
 This is a Uniswap v4 AMM hook based on the following trading function:
 
-$$xe^{y} = 1 $$
+$$xe^{y} = e $$
 
 We can concentrate the liquidity within a range using the following parameters a and b:
 
