@@ -1107,8 +1107,12 @@ const settings = { takeClaims: false, settleUsingBurn: false };
 
 function syncSwapUnits() {
   const recvEth = S.swapReceive === "ETH";
-  $("swap-pay-unit").textContent = recvEth ? "USDC" : "ETH";
-  $("swap-receive-unit").textContent = recvEth ? "ETH" : "USDC";
+  const payTok = recvEth ? "USDC" : "ETH";
+  const recvTok = recvEth ? "ETH" : "USDC";
+  $("swap-pay-unit").textContent = payTok;
+  $("swap-receive-unit").textContent = recvTok;
+  $("swap-receive-label").textContent = `Receive ${recvTok}`;
+  $("swap-button").textContent = `Pay ${payTok}`;
 }
 
 function swapShape() {
