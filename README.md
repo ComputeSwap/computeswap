@@ -15,6 +15,13 @@ An LP can also split a position's **ETH weight** as a token and sell it in a Dut
 Details:
 - [docs/DESIGN.md](docs/DESIGN.md): the math, 50/50 ranges, how liquidity is tracked, the architecture, and the verification results.
 - [docs/WEIGHTS.md](docs/WEIGHTS.md): the weights, and why positions are ERC-721 and weights ERC-6909.
+- [docs/AQUA.md](docs/AQUA.md): the same trading function as a [1inch Aqua](https://github.com/1inch/aqua) app, and how the weights survive the move.
+
+## Also an Aqua app
+
+The trading function also runs as a **1inch Aqua** app (`src/aqua/`): one Aqua strategy is one concentrated position, priced by the same `CurveSwapMath` step as the hook, with bit-identical results (`test/aqua/AquaParity.t.sol`). LPs can ship positions from their own wallet, Aqua-style, or through `AquaWeightVault`, which is the Aqua maker for its positions so that ETH weights can still be split, auctioned and exercised. Aqua cannot lock a maker's tokens, so a weight on a plain strategy would be unenforceable; the vault-as-maker is the workaround, and the one 1inch's documentation recommends for pooled inventory. See [docs/AQUA.md](docs/AQUA.md).
+
+Powered by Aqua — © Degensoft Ltd 2025.
 
 ## Running the app
 
@@ -78,10 +85,13 @@ src/
   curves/LogCurve.sol              your curve (ICurve), with libraries/LogCurveMath.sol
   libraries/                       ticks, fee growth and the swap loop (CurvePool, CurveSwapMath, ...)
   weights/                         WeightVault (ERC-721), WeightToken (ERC-6909), WeightAuction
+  aqua/                            the 1inch Aqua app, the vault-as-maker and a taker router, see docs/AQUA.md
 script/DeployLocal.s.sol           local deployment (anvil) for the app
 script/DeployUnichainSepolia.s.sol testnet deployment on Uniswap's PoolManager, see docs/DEPLOY_UNICHAIN.md
+script/DeployAqua.s.sol            the Aqua stack, against a given or a fresh Aqua registry
 frontend/                          index.html, app.js, curve.js (math, 50/50 solver), charts.js, chain.js
-test/                              43 tests; test/mocks holds an x*y curve used only to check the engine against v4
+test/                              101 tests; test/mocks holds an x*y curve used only to check the engine against v4,
+                                   test/aqua the Aqua app, vault, hook parity and invariants
 python/                            high-precision checks and an independent reference model
 license-mit/                       the previous MIT license, and how to switch back
 ```
@@ -95,6 +105,12 @@ forge test
 ```bash
 forge test --match-contract "UserScenario|WeightsTest" -vv
 ```
+
+```bash
+forge test --match-path "test/aqua/*" -vv
+```
+
+Foundry picks the compiler per file: Uniswap's `PoolManager` pins solc 0.8.26 and 1inch's `AquaApp` needs 0.8.30, so both are downloaded on the first run.
 
 ## License
 
@@ -113,5 +129,8 @@ The libraries in `lib/` keep their own licenses.
 | foundry-rs/forge-std | `1de6eecf821de7fe2c908cc48d3ab3dced20717f` | MIT / Apache-2.0 |
 | transmissions11/solmate | `4b47a19038b798b4a33d9749d25e570443520647` | AGPL-3.0, test mocks only |
 | Vectorized/solady | `2afba69bf67b78dd4abeadcc696052b3a6f71499` | MIT |
+| 1inch/aqua | `ef24220ed9647555727b06867bf509cd6959d84b` | Degensoft Aqua Source License 1.1; `src/aqua/ComputeswapAquaApp.sol` extends its `AquaApp` and is published under the same license, see [docs/AQUA.md](docs/AQUA.md) |
+| 1inch/solidity-utils | 6.9.9 (the files `lib/aqua` needs) | MIT |
+| OpenZeppelin/openzeppelin-contracts | 5.4.0 (three files) | MIT |
 
 This is a prototype and has **not been audited**.

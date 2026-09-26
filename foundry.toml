@@ -3,14 +3,17 @@ src = "src"
 test = "test"
 out = "out"
 libs = ["lib"]
-solc = "0.8.26"
 evm_version = "cancun"
 optimizer = true
 optimizer_runs = 200
 via_ir = false
 bytecode_hash = "none"
 gas_limit = "300000000"
-fs_permissions = [{ access = "read-write", path = "./reports" }, { access = "read-write", path = "./frontend" }]
+fs_permissions = [
+    { access = "read-write", path = "./reports" },
+    { access = "read-write", path = "./frontend" },
+    { access = "read", path = "./out" },
+]
 
 [profile.default.fuzz]
 runs = 512

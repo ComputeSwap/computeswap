@@ -4,3 +4,4 @@ broadcast/
 reports/*.csv
 __pycache__/
 .vercel
+reports/aqua-deployment.json

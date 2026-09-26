@@ -2,3 +2,7 @@
 forge-std/=lib/forge-std/src/
 solmate/=lib/solmate/
 solady/=lib/solady/src/
+@1inch/aqua/=lib/aqua/src/
+@1inch/solidity-utils/=lib/solidity-utils/
+@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/
+@1inch/aqua-examples/=lib/aqua/examples/
