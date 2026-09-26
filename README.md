@@ -2,11 +2,11 @@
 
 This is a Uniswap v4 AMM hook based on the following trading function:
 
-$$xe^{y} = 1 \qquad\text{offset for a range }
+$$xe^{y} = 1 \qquad\text{offset for a range }$$
 
 We can concentrate the liquidity within a range using the following parameters a and b:
 
-[p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
+$$[p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC. Positions with the same or different ranges add up as in Uniswap v3, and fees are shared pro rata.
 
