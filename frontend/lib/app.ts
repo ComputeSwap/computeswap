@@ -483,12 +483,13 @@ function enqueueTx<T>(fn: () => Promise<T>): Promise<T> {
 async function pendingNonce(
   runner: ethers.ContractRunner,
 ): Promise<number | undefined> {
-  if (!("getAddress" in runner) || !runner.provider) {
+  const provider =
+    "provider" in runner ? runner.provider : null;
+  if (!("getAddress" in runner) || !provider) {
     return undefined;
   }
-  const signer = runner as ethers.Signer;
-  const address = await signer.getAddress();
-  return signer.provider.getTransactionCount(address, "pending");
+  const address = await (runner as ethers.Signer).getAddress();
+  return provider.getTransactionCount(address, "pending");
 }
 
 export async function send(
