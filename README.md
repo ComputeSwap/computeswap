@@ -1,18 +1,18 @@
-# Compute Trading Function 
+# Compute Trading Function
 
 This is an ETH/USDC Uniswap v4 hook built on your trading function, with concentrated liquidity:
 
-$$x\,e^{y} = 1 \qquad\text{offset for a range } [p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
+$$x\e^{y} = 1 \qquad\text{offset for a range } [p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC. Positions with the same or different ranges add up as in Uniswap v3, and fees are shared pro rata.
 
-An LP can also split a position's **ETH weight** off as a token and sell it in a Dutch auction. Until the token expires (5 days by default), its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees.
+An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Until the token expires, its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees.
 
-More detail:
+Details:
 - [docs/DESIGN.md](docs/DESIGN.md): the math, 50/50 ranges, how liquidity is tracked, the architecture, and the verification results.
 - [docs/WEIGHTS.md](docs/WEIGHTS.md): the weights, and why positions are ERC-721 and weights ERC-6909.
 
-## Run the app
+## Running the app
 
 You need Foundry ≥ 1.0 (`foundryup`) and Python 3, plus internet access, because the page loads ethers.js from jsdelivr. Run each command below in its own terminal, from this folder:
 
