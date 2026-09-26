@@ -564,8 +564,6 @@ export async function call(
   });
 }
 
-const auctionDropBufferSec = 120n;
-
 async function auctionDropDuration(
   c: Contracts,
   seriesId: bigint | number,
@@ -580,12 +578,7 @@ async function auctionDropDuration(
   }
   const headroom = expiry - now;
   const requested = BigInt(Math.round(dropMin * 60));
-  let drop = requested <= headroom ? requested : headroom;
-  if (headroom <= auctionDropBufferSec) {
-    drop = headroom > 1n ? headroom - 1n : 0n;
-  } else if (drop > auctionDropBufferSec) {
-    drop -= auctionDropBufferSec;
-  }
+  const drop = requested <= headroom ? requested : headroom;
   return drop > 0n ? drop : 0n;
 }
 
