@@ -8,11 +8,11 @@
   "hook": "0xD5bb04dee339596Aa1387E24Bab075e157cb6888",
   "poolManager": "0x00B036B58a818B1BC34d502D3fE730Db729e62AC",
   "router": "0x9140a78c1A137c7fF1c151EC8231272aF78a99A4",
-  "rpc": "https://sepolia.unichain.org",
+  "rpc": "https://unichain-sepolia.g.alchemy.com/v2/alch_-x1P0Lgx5IfbV4hBG88US",
   "startBlock": 63535871,
   "tickSpacing": 10,
   "usdc": "0x197899470fF01CFC88f65819b93E2b0eef4aA85f",
   "usdcMintable": true,
   "vault": "0xbb4f58898eb30f617A753EB2866D4a69d098cA34",
-  "weights": "0x3691B2913289b96ecd6dd36e8308c36B10Be9967"
+  "weights": "0x3691B2913289b96ecd6dd36e8308c36B10Be9967",
 }
