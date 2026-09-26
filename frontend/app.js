@@ -41,11 +41,12 @@ const S = {
   positions: [],
   series: [],
   auctions: [],
-  history: [], // every operation on the pool, oldest first, rebuilt from the contracts' events
-  historyFrom: 0, // next block to read events from
-  historyAll: false, // show every row instead of the latest ones
-  hctx: { price: null, ranges: {}, seriesPos: {}, auctions: {} }, // what the event stream has told us so far
-  txFrom: new Map(), // tx hash -> sender
+  history: [],
+  historyFrom: 0,
+  historyAll: false,
+  historyLoading: false,
+  hctx: { price: null, ranges: {}, seriesPos: {}, auctions: {} },
+  txFrom: new Map(),
   eth: 0n,
   usdc: 0n,
   chainTime: 0,
@@ -210,10 +211,12 @@ async function init() {
       ],
     ),
   );
+  restoreHistoryCache();
   if (S.local) setAccount(0);
-  else bind(S.provider, null); // read-only until a wallet connects
+  else bind(S.provider, null);
   wire();
   await refresh();
+  scheduleHistoryLoad();
   S.provider.on("block", () => scheduleRefresh());
   setInterval(
     () =>
@@ -377,31 +380,6 @@ async function refresh() {
   );
   S.positions = loaded.filter(Boolean);
 
-  S.series = await Promise.all(
-    ids(ns).map(async (id) => {
-      const [s, balance] = await Promise.all([
-        vault.series(id),
-        S.me ? weights.balanceOf(S.me, id) : 0n,
-      ]);
-      const entry = {
-        id,
-        positionId: Number(s.positionId),
-        expiry: Number(s.expiry),
-        balance,
-      };
-      if (balance > 0n) {
-        const pv = await vault.previewExercise(id, balance);
-        entry.preview = {
-          leg: pv.legAmount,
-          allowed: pv.allowed,
-          tick: Number(pv.tick),
-          ema: Number(pv.emaTick),
-        };
-      }
-      return entry;
-    }),
-  );
-
   S.auctions = await Promise.all(
     ids(na).map(async (id) => {
       const a = await auction.auctions(id);
@@ -421,9 +399,57 @@ async function refresh() {
     }),
   );
 
-  await loadHistory(block.number);
+  const seriesNeed = new Set();
+  for (const a of S.auctions) {
+    if (a.remaining > 0n) seriesNeed.add(a.seriesId);
+  }
+  for (const p of S.positions) {
+    if (p.activeSeries) seriesNeed.add(Number(p.activeSeries));
+  }
+
+  if (S.me) {
+    S.series = (
+      await Promise.all(
+        ids(ns).map(async (id) => {
+          const [s, balance] = await Promise.all([
+            vault.series(id),
+            weights.balanceOf(S.me, id),
+          ]);
+          const entry = {
+            id,
+            positionId: Number(s.positionId),
+            expiry: Number(s.expiry),
+            balance,
+          };
+          if (balance > 0n) {
+            const pv = await vault.previewExercise(id, balance);
+            entry.preview = {
+              leg: pv.legAmount,
+              allowed: pv.allowed,
+              tick: Number(pv.tick),
+              ema: Number(pv.emaTick),
+            };
+          }
+          return entry;
+        }),
+      )
+    ).filter((s) => s.balance > 0n || seriesNeed.has(s.id));
+  } else {
+    S.series = await Promise.all(
+      [...seriesNeed].map(async (id) => {
+        const s = await vault.series(id);
+        return {
+          id,
+          positionId: Number(s.positionId),
+          expiry: Number(s.expiry),
+          balance: 0n,
+        };
+      }),
+    );
+  }
 
   render();
+  scheduleHistoryLoad(block.number);
   await updateAddPreview();
   updateSwapPreview();
 }
@@ -659,14 +685,85 @@ function logChunkBlocks() {
   return S.local ? 10_000 : 10;
 }
 
+function historyStorageKey() {
+  return `logCurve-hist:${S.dep.chainId}:${S.dep.hook}`;
+}
+
+function restoreHistoryCache() {
+  try {
+    const raw = localStorage.getItem(historyStorageKey());
+    if (!raw) return;
+    const data = JSON.parse(raw);
+    if (data.v !== 1) return;
+    S.history = data.history ?? [];
+    if (Number.isFinite(data.historyFrom)) S.historyFrom = data.historyFrom;
+    if (data.hctx) {
+      S.hctx = {
+        price: data.hctx.price ?? null,
+        ranges: data.hctx.ranges ?? {},
+        seriesPos: data.hctx.seriesPos ?? {},
+        auctions: data.hctx.auctions ?? {},
+      };
+    }
+    S.txFrom = new Map(data.txFrom ?? []);
+  } catch {}
+}
+
+function saveHistoryCache() {
+  try {
+    localStorage.setItem(
+      historyStorageKey(),
+      JSON.stringify({
+        v: 1,
+        historyFrom: S.historyFrom,
+        history: S.history,
+        hctx: S.hctx,
+        txFrom: [...S.txFrom.entries()],
+      }),
+    );
+  } catch {}
+}
+
+let historyLoadGen = 0;
+let historyLoadQueued = null;
+
+function scheduleHistoryLoad(latest) {
+  if (latest != null) historyLoadQueued = latest;
+  else if (historyLoadQueued == null) historyLoadQueued = S.chainBlock;
+  void runHistoryLoad();
+}
+
+async function runHistoryLoad() {
+  const latest = historyLoadQueued ?? S.chainBlock;
+  historyLoadQueued = null;
+  const gen = ++historyLoadGen;
+  S.historyLoading = true;
+  renderHistory();
+  try {
+    await loadHistory(latest);
+  } catch (e) {
+    if (gen === historyLoadGen)
+      toast("History sync failed: " + decodeError(e), "err");
+  } finally {
+    if (gen === historyLoadGen) {
+      S.historyLoading = false;
+      renderHistory();
+    }
+  }
+  if (historyLoadQueued != null && gen === historyLoadGen) void runHistoryLoad();
+}
+
 async function loadHistory(latest) {
   const chunk = logChunkBlocks();
-  const from = Math.max(S.historyFrom, Number(S.dep.startBlock || 0));
+  const from = Math.max(
+    S.historyFrom,
+    Number(S.dep.historyStartBlock ?? S.dep.startBlock ?? 0),
+  );
   if (latest < from) return;
   const ranges = [];
   for (let b = from; b <= latest; b += chunk)
     ranges.push([b, Math.min(latest, b + chunk - 1)]);
-  const parallel = chunk <= 10 ? 1 : 4;
+  const parallel = chunk <= 10 ? 8 : 4;
   const logs = [];
   for (let i = 0; i < ranges.length; i += parallel) {
     const batch = await Promise.all(
@@ -694,14 +791,31 @@ async function loadHistory(latest) {
     const row = ev && historyRow(ev);
     if (row) S.history.push({ ...row, tx: log.transactionHash });
   }
-  // who sent each transaction
-  const unknown = [
-    ...new Set(S.history.map((r) => r.tx).filter((h) => !S.txFrom.has(h))),
-  ];
-  const txs = await Promise.all(
-    unknown.map((h) => S.provider.getTransaction(h)),
-  );
-  unknown.forEach((h, i) => S.txFrom.set(h, txs[i]?.from));
+  saveHistoryCache();
+}
+
+let txFromLoad = null;
+function ensureTxFromForRows(rows) {
+  const need = [...new Set(rows.map((r) => r.tx).filter((h) => h && !S.txFrom.has(h)))];
+  if (!need.length) return;
+  txFromLoad = (txFromLoad ?? Promise.resolve())
+    .then(async () => {
+      for (let i = 0; i < need.length; i += 10) {
+        const chunk = need.slice(i, i + 10);
+        const txs = await Promise.all(
+          chunk.map((h) => S.provider.getTransaction(h)),
+        );
+        chunk.forEach((h, j) => {
+          if (txs[j]?.from) S.txFrom.set(h, txs[j].from);
+        });
+      }
+      saveHistoryCache();
+      renderHistory();
+    })
+    .catch(() => {})
+    .finally(() => {
+      txFromLoad = null;
+    });
 }
 
 /** One history row per event (null for events that are not operations on this pool). Events arrive in chain order. */
@@ -827,10 +941,13 @@ function historyRow(ev) {
 const HISTORY_ROWS = 15;
 function renderHistory() {
   if (!S.history.length) {
-    $("history").innerHTML = `<p class="muted">Nothing yet.</p>`;
+    $("history").innerHTML = S.historyLoading
+      ? `<p class="muted">Loading activity…</p>`
+      : `<p class="muted">Nothing yet.</p>`;
     return;
   }
   const shown = S.historyAll ? S.history : S.history.slice(-HISTORY_ROWS);
+  ensureTxFromForRows(shown);
   const num = (v) => (v === null || v === undefined ? "–" : fmtNum(v, 4));
   const rows = [...shown].reverse().map((r) => {
     const who = S.txFrom.get(r.tx);
@@ -843,9 +960,12 @@ function renderHistory() {
     S.history.length > HISTORY_ROWS
       ? `<button type="button" class="small ghost more" id="history-more">${S.historyAll ? "Show latest" : `Show all ${S.history.length}`}</button>`
       : "";
+  const sync = S.historyLoading
+    ? `<p class="muted sub">Syncing activity…</p>`
+    : "";
   $("history").innerHTML =
     `<table><thead><tr><th>Who</th><th>What</th><th>ETH</th><th>USDC</th><th>Price</th></tr></thead>` +
-    `<tbody>${rows.join("")}</tbody></table>${more}`;
+    `<tbody>${rows.join("")}</tbody></table>${more}${sync}`;
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
