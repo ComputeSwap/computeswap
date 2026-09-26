@@ -95,6 +95,9 @@ export default function Weights() {
                       : t < a.end
                         ? `· falling for ${fmtDuration(a.end - t)} · floor $${fmtNum(floor, 2)}`
                         : `· at floor $${fmtNum(floor, 2)}`}
+                    {s && s.expiry > t
+                      ? ` · weight expires in ${fmtDuration(s.expiry - t)}`
+                      : null}
                   </span>
                 </div>
                 <div className="act">
