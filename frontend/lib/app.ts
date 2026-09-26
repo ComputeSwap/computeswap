@@ -374,12 +374,13 @@ function restoreHistoryCache() {
       return;
     }
     const data = JSON.parse(raw);
-    if (data?.v !== 2 || !Array.isArray(data.history)) {
+    if (data?.v !== 3 || !Array.isArray(data.history)) {
       return;
     }
     set({
       history: data.history,
       historyBlock: Number(data.historyBlock ?? -1),
+      historyGen: data.gen ?? null,
     });
   } catch {}
 }
@@ -390,12 +391,25 @@ function saveHistoryCache() {
     localStorage.setItem(
       historyStorageKey(),
       JSON.stringify({
-        v: 2,
+        v: 3,
+        gen: s.historyGen,
         historyBlock: s.historyBlock,
         history: s.history.slice(-2000),
       }),
     );
   } catch {}
+}
+
+type HistoryResponse = { rows: HistoryEntry[]; status: State["historyStatus"] };
+
+async function fetchHistory(after: number): Promise<HistoryResponse> {
+  const res = await fetch(`/api/history?after=${after}`, { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error(
+      (await res.json().catch(() => null))?.error || `history ${res.status}`,
+    );
+  }
+  return (await res.json()) as HistoryResponse;
 }
 
 let historyLoad: Promise<void> | null = null;
@@ -404,25 +418,23 @@ export function loadHistory(): Promise<void> {
     return historyLoad;
   }
   historyLoad = (async () => {
-    const res = await fetch(`/api/history?after=${S().historyBlock}`, {
-      cache: "no-store",
-    });
-    if (!res.ok) {
-      throw new Error(
-        (await res.json().catch(() => null))?.error || `history ${res.status}`,
-      );
-    }
-    const { rows, status } = (await res.json()) as {
-      rows: HistoryEntry[];
-      status: State["historyStatus"];
-    };
-    const s = S();
+    let { rows, status } = await fetchHistory(S().historyBlock);
+    let s = S();
     if (
       s.dep &&
       status &&
       status.key !== `${s.dep.chainId}:${s.dep.hook.toLowerCase()}`
     ) {
       return; // the server points at another deployment
+    }
+    if (status && s.historyGen !== null && s.historyGen !== status.generation) {
+      // the server re-derived its rows: drop the cached copy and load everything again
+      set({ history: [], historyBlock: -1 });
+      ({ rows, status } = await fetchHistory(-1));
+      s = S();
+    }
+    if (status) {
+      set({ historyGen: status.generation });
     }
     if (
       status &&

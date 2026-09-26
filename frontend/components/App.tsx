@@ -5,6 +5,7 @@ import { init, stop } from "@/lib/app";
 import type { Deployment } from "@/lib/config";
 import { useStore } from "@/lib/store";
 import AddLiquidity from "./AddLiquidity";
+import DebugToggle from "./DebugToggle";
 import Header from "./Header";
 import History from "./History";
 import LiquidityChart from "./LiquidityChart";
@@ -12,7 +13,6 @@ import PositionPop from "./PositionPop";
 import ReservesChart from "./ReservesChart";
 import SplitModal from "./SplitModal";
 import Swap from "./Swap";
-import DebugToggle from "./DebugToggle";
 import Toast from "./Toast";
 import Weights from "./Weights";
 

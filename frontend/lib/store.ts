@@ -79,6 +79,7 @@ export type State = {
   auctions: Auction[];
   history: HistoryEntry[];
   historyBlock: number; // the last block whose rows are in `history`
+  historyGen: number | null; // the server's row generation the cached rows came from
   historyStatus: SyncStatus | null;
   historyAll: boolean;
   historyLoading: boolean;
@@ -145,6 +146,7 @@ export const useStore = create<State>(() => ({
   auctions: [],
   history: [],
   historyBlock: -1,
+  historyGen: null,
   historyStatus: null,
   historyAll: false,
   historyLoading: true,

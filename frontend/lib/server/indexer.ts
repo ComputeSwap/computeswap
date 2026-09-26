@@ -17,6 +17,7 @@ export type SyncStatus = {
   syncedBlock: number; // every block up to here is in the database
   updatedAt: number | null; // unix ms of the last completed sync step
   syncing: boolean; // a sync call holds the lease right now
+  generation: number; // bumps when rows are re-derived, so browsers drop their cached copy
 };
 
 export type SyncResult = SyncStatus & {
@@ -54,7 +55,7 @@ async function ensureCursor(cfg: ServerConfig) {
 export async function syncStatus(cfg = serverConfig()): Promise<SyncStatus> {
   await ensureCursor(cfg);
   const [row] = await query(
-    `SELECT synced_block, updated_at, (locked_until IS NOT NULL AND locked_until > now()) AS syncing
+    `SELECT synced_block, updated_at, generation, (locked_until IS NOT NULL AND locked_until > now()) AS syncing
      FROM sync_cursor WHERE key = $1`,
     [cfg.key],
   );
@@ -67,6 +68,7 @@ export async function syncStatus(cfg = serverConfig()): Promise<SyncStatus> {
     syncedBlock: Number(row.synced_block),
     updatedAt: updated > 0 ? updated : null,
     syncing: Boolean(row.syncing),
+    generation: Number(row.generation ?? 1),
   };
 }
 
@@ -251,6 +253,10 @@ export async function rederive(
       ],
     );
   }
+  await query(
+    `UPDATE sync_cursor SET generation = generation + 1 WHERE key = $1`,
+    [cfg.key],
+  );
   return { rows: rows.length };
 }
 

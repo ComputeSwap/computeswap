@@ -33,6 +33,9 @@ async function migrate(query: Query) {
     locked_until timestamptz,
     updated_at timestamptz NOT NULL DEFAULT now()
   )`);
+  await query(
+    `ALTER TABLE sync_cursor ADD COLUMN IF NOT EXISTS generation integer NOT NULL DEFAULT 1`,
+  );
   await query(`CREATE TABLE IF NOT EXISTS events (
     key text NOT NULL,
     block_number bigint NOT NULL,
