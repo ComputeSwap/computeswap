@@ -10,7 +10,7 @@ $$[p_a, p_b]:\qquad (x + p_b^{-1})e^{(1+y+\ln p_a)} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC.
 
-An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Until the token expires (15 minutes by default in the app), its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees. The **ETH weight** payoff resembles a butterfly spread (put option with a cap on it). 
+An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Until the token expires (15 minutes by default in the app), its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees. The **ETH weight** payoff resembles a butterfly spread (put option with a cap on it), we call it Decomposed Compute Position (DCP).
 
 <img width="1032" height="596" alt="Screenshot 2026-09-25 at 23 30 19" src="https://github.com/user-attachments/assets/f522947b-f34c-45c8-a6fe-b70f2ede30ef" />
 
