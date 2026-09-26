@@ -564,6 +564,38 @@ export async function call(
   });
 }
 
+const auctionDropBufferSec = 120n;
+
+async function auctionDropDuration(
+  c: Contracts,
+  seriesId: bigint | number,
+  dropMin: number,
+  provider: ethers.Provider,
+): Promise<bigint> {
+  const expiry = BigInt(await c.weights.expiryOf(seriesId));
+  const block = await provider.getBlock("latest");
+  const now = BigInt(block?.timestamp ?? 0);
+  if (expiry <= now) {
+    return 0n;
+  }
+  const headroom = expiry - now;
+  const requested = BigInt(Math.round(dropMin * 60));
+  let drop = requested <= headroom ? requested : headroom;
+  if (headroom <= auctionDropBufferSec) {
+    drop = headroom > 1n ? headroom - 1n : 0n;
+  } else if (drop > auctionDropBufferSec) {
+    drop -= auctionDropBufferSec;
+  }
+  return drop > 0n ? drop : 0n;
+}
+
+function txReadProvider(c: Contracts, fallback: ethers.Provider) {
+  const runner = c.auction.runner;
+  return runner && "provider" in runner && runner.provider
+    ? runner.provider
+    : fallback;
+}
+
 export async function ensureUsdcAllowance(spender: string, amount: bigint) {
   const c = S().c as Contracts;
   if ((await c.usdc.allowance(S().me, spender)) >= amount) {
@@ -842,9 +874,9 @@ export async function doSplit() {
   if (!(minutes > 0) || !(dropMin > 0)) {
     return toast("Expiry and price drop must both be above 0.", "err");
   }
-  if (dropMin > minutes) {
+  if (dropMin >= minutes) {
     return toast(
-      "The price drop must finish before the weight expires.",
+      "The price drop must finish before the weight expires: use a shorter drop or a longer expiry.",
       "err",
     );
   }
@@ -877,34 +909,28 @@ export async function doSplit() {
   ) {
     return;
   }
-  const expiry = BigInt(ev.args.expiry);
-  const readProvider =
-    c.auction.runner &&
-    "provider" in c.auction.runner &&
-    c.auction.runner.provider
-      ? c.auction.runner.provider
-      : (s.provider as ethers.Provider);
-  const block = await readProvider.getBlock("latest");
-  const chainNow = BigInt(block?.timestamp ?? 0);
-  const headroom = expiry > chainNow ? expiry - chainNow : 0n;
-  const requested = BigInt(Math.round(dropMin * 60));
-  const dropSec = requested <= headroom ? requested : headroom;
-  if (dropSec <= 0n) {
-    return toast(
-      "Not enough time left before the weight expires: use a longer expiry or a shorter price drop.",
-      "err",
+  const readProvider = txReadProvider(c, s.provider as ethers.Provider);
+  await send("Start auction", async () => {
+    const dropSec = await auctionDropDuration(
+      c,
+      seriesId,
+      dropMin,
+      readProvider,
     );
-  }
-  await send("Start auction", () =>
-    call(c.auction, "create", [
+    if (dropSec <= 0n) {
+      throw new Error(
+        "Not enough time left before the weight expires: use a longer expiry or a shorter price drop.",
+      );
+    }
+    return call(c.auction, "create", [
       seriesId,
       units,
       dep.usdc,
       start,
       floor,
       dropSec,
-    ]),
-  );
+    ]);
+  });
 }
 
 // ---------------------------------------------------------------------------------------------------------------------

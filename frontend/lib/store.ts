@@ -178,7 +178,7 @@ export const useStore = create<State>(() => ({
   splitFor: null,
   splitShare: "100",
   splitMinutes: "15",
-  auctionDrop: "15",
+  auctionDrop: "10",
   auctionStart: "",
   auctionFloor: "",
   buyPct: {},

@@ -109,6 +109,7 @@ export const ABI = {
     "function approve(address spender, uint256 id, uint256 amount) returns (bool)",
     "function transfer(address to, uint256 id, uint256 amount) returns (bool)",
     "function isExpired(uint256 id) view returns (bool)",
+    "function expiryOf(uint256 id) view returns (uint64)",
     ...ERRORS,
   ],
   auction: [
