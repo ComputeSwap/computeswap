@@ -16,12 +16,12 @@
   },
   "linter": {
     "enabled": true,
-		"rules": {
-			"recommended": true,
-			"style": {
-				"useBlockStatements": "error"
-			}
-		}
+    "rules": {
+      "recommended": true,
+      "style": {
+        "useBlockStatements": "error"
+      }
+    }
   },
   "javascript": {
     "formatter": {

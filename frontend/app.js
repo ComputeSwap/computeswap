@@ -51,7 +51,6 @@ const S = {
   chainTime: 0,
   chainTimeAt: 0,
   chainBlock: 0,
-  chainBlockAt: 0,
   busy: false,
   side: "buy",
   unit: "ETH",
@@ -89,9 +88,11 @@ const nameOf = (addr) => {
 };
 const isMe = (addr) =>
   addr && S.me && addr.toLowerCase() === S.me.toLowerCase();
-const now = () => S.chainTime + Math.floor((Date.now() - S.chainTimeAt) / 1000);
-const chainBlock = () =>
-  S.chainBlock + Math.floor((Date.now() - S.chainBlockAt) / 12000);
+const now = () =>
+  S.local
+    ? S.chainTime
+    : S.chainTime + Math.floor((Date.now() - S.chainTimeAt) / 1000);
+const chainBlock = () => S.chainBlock;
 const salt = (id) => ethers.toBeHex(id, 32);
 const deadline = () => BigInt(now() + 3600);
 function fmtDuration(sec) {
@@ -189,7 +190,13 @@ async function init() {
   wire();
   await refresh();
   S.provider.on("block", () => scheduleRefresh());
-  setInterval(renderTimers, 1000);
+  setInterval(
+    () =>
+      syncChainClock()
+        .then(renderTimers)
+        .catch(() => {}),
+    1000,
+  );
 }
 
 function setAccount(i) {
@@ -266,25 +273,29 @@ function scheduleRefresh() {
   return refreshing;
 }
 
-async function refresh() {
-  const { hook, vault, weights, auction, usdc } = S.c;
+async function syncChainClock() {
   const block = await S.provider.getBlock("latest");
-  // The chain's clock. anvil mines only when there is a transaction, so its latest block can be hours old while the
-  // next one will carry the real time; its "pending" block shows that time. (Deadlines and auction prices use it.)
-  let pendingTime = 0;
+  S.chainTime = block.timestamp;
+  S.chainBlock = block.number;
+  S.chainTimeAt = Date.now();
   if (S.local) {
     try {
-      pendingTime = parseInt(
-        (await S.provider.send("eth_getBlockByNumber", ["pending", false]))
-          .timestamp,
-        16,
-      );
+      const pending = await S.provider.send("eth_getBlockByNumber", [
+        "pending",
+        false,
+      ]);
+      const pt = parseInt(pending.timestamp, 16);
+      const pn = parseInt(pending.number, 16);
+      if (Number.isFinite(pt)) S.chainTime = Math.max(S.chainTime, pt);
+      if (Number.isFinite(pn)) S.chainBlock = Math.max(S.chainBlock, pn);
     } catch {}
   }
-  S.chainTime = Math.max(block.timestamp, pendingTime || 0);
-  S.chainTimeAt = Date.now();
-  S.chainBlock = block.number;
-  S.chainBlockAt = Date.now();
+}
+
+async function refresh() {
+  const { hook, vault, weights, auction, usdc } = S.c;
+  await syncChainClock();
+  const block = await S.provider.getBlock("latest");
   [S.eth, S.usdc] = S.me
     ? await Promise.all([S.provider.getBalance(S.me), usdc.balanceOf(S.me)])
     : [0n, 0n];
@@ -607,8 +618,8 @@ function renderTimers() {
       endEl.textContent = auctionAnnounced(a)
         ? "· announced · drops next block"
         : t < a.end
-            ? `· falling for ${fmtDuration(a.end - t)} · floor $${fmtNum(floor, 2)}`
-            : `· at floor $${fmtNum(floor, 2)}`;
+          ? `· falling for ${fmtDuration(a.end - t)} · floor $${fmtNum(floor, 2)}`
+          : `· at floor $${fmtNum(floor, 2)}`;
     }
   }
   drawPayoffs();
