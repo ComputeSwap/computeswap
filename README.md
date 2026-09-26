@@ -2,7 +2,7 @@
 
 This is an ETH/USDC Uniswap v4 hook built on your trading function, with concentrated liquidity:
 
-$$x\e^{y} = 1 \qquad\text{offset for a range } [p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
+$$xe^{y} = 1 \qquad\text{offset for a range } [p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC. Positions with the same or different ranges add up as in Uniswap v3, and fees are shared pro rata.
 
