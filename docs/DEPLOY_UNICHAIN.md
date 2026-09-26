@@ -10,7 +10,7 @@ Two things go online:
    - a freely mintable test USDC (by default).
 
    It then creates the ETH/USDC pool on Uniswap's PoolManager.
-2. **The web page.** `frontend/` is plain static files with no build step. Upload the folder to any static host. Visitors connect their own browser wallet.
+2. **The web page.** `frontend/` is a Next.js app with a small server side: it indexes the pool's events into Postgres and serves the activity table and the shared pool state to every visitor from there. Host it on Vercel (step 6). Visitors connect their own browser wallet.
 
 Everything here was rehearsed on a local copy of Unichain Sepolia with Uniswap's real contracts:
 - deploy;
@@ -82,7 +82,7 @@ Workflow **Deploy Unichain Sepolia** (`.github/workflows/deploy-unichain-sepolia
 | `UNICHAIN_RPC_URL` | no | RPC for simulation and broadcast (defaults to the public Unichain Sepolia URL) |
 | `UNICHAIN_APP_RPC` | no | RPC written into `frontend/deployments.json` as `APP_RPC` (use a provider URL with domain allowlisting for the hosted app) |
 
-First run: leave **Broadcast** off to simulate only (no deployer secret needed). Turn **Broadcast** on for a live deploy; download `deployments-unichain-sepolia` from the run artifacts and copy `deployments.json` into `frontend/` before publishing the static site.
+First run: leave **Broadcast** off to simulate only (no deployer secret needed). Turn **Broadcast** on for a live deploy; download `deployments-unichain-sepolia` from the run artifacts, copy `deployments.json` into `frontend/` and commit it: Vercel builds the app from the repository.
 
 ### Local deploy
 
@@ -142,26 +142,38 @@ These are Foundry's standard verification commands. Unlike the deployment, they 
 
 ## 6. Put the web page online
 
-Before uploading, try it from your machine. It should show "Unichain Sepolia" and a **Connect wallet** button:
+Before deploying, try it from your machine. It should show "Unichain Sepolia" and a **Connect wallet** button:
 
 ```bash
-python frontend/serve.py
+cd frontend && npm install && npm run dev
 ```
 
-Then upload the `frontend/` folder: `index.html`, `app.js`, `chain.js`, `curve.js`, `charts.js`, `style.css` and `deployments.json`. `serve.py` isn't needed online. Any static host works:
-- **Netlify or Cloudflare Pages:** create a site and drag the `frontend` folder onto the upload area.
-- **Vercel:** run `npx vercel frontend` and follow the prompts.
-- **GitHub Pages:** it serves the repository root or `/docs` only, so publish `frontend/` with a small Pages workflow, or copy its files to a branch's root.
-- **IPFS:** upload the folder to a pinning service. The page is fully static and uses relative paths, so it works from a gateway.
+Without a `DATABASE_URL`, the server keeps its index in an embedded database under `frontend/.pglite/`. With the public Unichain RPC it backfills all activity since the deploy in a few seconds (set `INDEXER_LOG_CHUNK=5000` in `frontend/.env.local`; the public RPC allows up to 10,000 blocks per `eth_getLogs`).
 
-The page loads ethers.js from the jsdelivr CDN and talks to the chain from the visitor's browser. There's no server to run.
+### Vercel
 
-**RPC limits.** The public RPC is rate-limited, and the page polls it every few seconds per visitor. For more than a handful of testers:
-1. Create a free Unichain Sepolia endpoint at a provider such as Alchemy or QuickNode.
-2. Redeploy with `APP_RPC=<that URL>`, or edit `rpc` in `deployments.json`.
-3. Restrict the key to your site's domain. It's visible in the page.
+1. **Import the repository** at vercel.com/new and set **Root Directory** to `frontend`. Vercel detects Next.js.
+2. **Add a Postgres database:** in the project's **Storage** tab, create a **Neon** database (free tier). Vercel sets `DATABASE_URL` on the project. The tables are created on first use.
+3. **Environment variables** (Settings → Environment Variables; see `frontend/.env.example`):
 
-On Alchemy's free tier, `eth_getLogs` is limited to a **10-block** range. The app uses 10-block chunks automatically when not on anvil (override with `logChunkBlocks` in `deployments.json`). Pool swaps and the activity table are rebuilt from those logs; **weights, auctions, and positions come from contract reads**, not logs. History sync runs in the background so the rest of the page loads first, and progress is cached in the browser (`localStorage`) so repeat visits only fetch new blocks. Optional `historyStartBlock` in `deployments.json` skips older blocks if you do not need full activity from deploy time.
+   | Variable | Purpose |
+   |---|---|
+   | `INDEXER_RPC_URL` | The RPC the server indexes and reads the pool state through. It is never sent to the browser, so a plain provider key (no domain allowlist) works. Leave unset to use `rpc` from `deployments.json`. |
+   | `INDEXER_LOG_CHUNK` | Blocks per `eth_getLogs` call. **10** for an Alchemy free-tier key (its limit), up to `10000` for the public Unichain RPC. |
+   | `CRON_SECRET` | Any random string. Vercel sends it with cron calls, and `/api/sync` rejects other callers. |
+   | `ALCHEMY_WEBHOOK_SIGNING_KEY` | Optional, see below. |
+
+4. **Deploy.** Then open `https://<your-app>/api/sync` once with `?key=<CRON_SECRET>` to start the backfill, or wait for the cron.
+
+**How the index stays current.** There is no long-running process. `/api/sync` indexes a bounded number of blocks per call (40 seconds' worth at most, one `eth_getLogs` at a time with a pause between them, so a free-tier key is never rate-limited) and stores its cursor in the database. It is called three ways:
+
+- **Cron.** `frontend/vercel.json` schedules `/api/sync` every minute. Vercel's Hobby plan only allows daily crons: change the schedule to `0 0 * * *` there, and rely on the next two.
+- **The page itself.** When someone loads or watches the page and the index is more than a few seconds old, the history request triggers one sync step after it responds. A visited page keeps itself current on any plan.
+- **Alchemy webhook (optional, push).** In the Alchemy dashboard, create an **Address Activity** webhook for the hook, vault and auction addresses on Unichain Sepolia, pointing at `https://<your-app>/api/webhook`, and set its signing key as `ALCHEMY_WEBHOOK_SIGNING_KEY`. The app then indexes each new transaction within seconds of it landing, without polling.
+
+With an Alchemy free-tier key, the first backfill of the ~20k blocks since deploy takes about ten minutes of cron calls (10 blocks per call, 75 compute units each). Optional `historyStartBlock` in `deployments.json` skips older blocks if you do not need activity from deploy time.
+
+**RPC use.** Each visitor's browser now only reads its own wallet's balances and weights and sends transactions. Positions, auctions and the price are read once per block by the server (`/api/state`, cached at the edge for two seconds) and shared by every visitor. The `rpc` in `deployments.json` is still what the browser uses for those wallet reads and for adding the network to the wallet, so a provider URL with a domain allowlist is still recommended there for public sites (`APP_RPC` at deploy time).
 
 ## 7. Using it
 

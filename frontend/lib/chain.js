@@ -1,5 +1,5 @@
-// Contracts, ABIs and error decoding for the local deployment (see script/DeployLocal.s.sol).
-import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.min.js";
+// Contracts, ABIs and error decoding for the deployment (see script/DeployBase.s.sol).
+import { ethers } from "ethers";
 
 export { ethers };
 
@@ -209,7 +209,7 @@ function describe(data) {
         "Error: " +
         ethers.AbiCoder.defaultAbiCoder().decode(
           ["string"],
-          "0x" + data.slice(10),
+          `0x${data.slice(10)}`,
         )[0]
       );
     } catch {

@@ -1,12 +1,3 @@
 {
-  "headers": [
-    {
-      "source": "/deployments.json",
-      "headers": [{ "key": "Cache-Control", "value": "no-store" }]
-    },
-    {
-      "source": "/(.*)\\.(js|css|html)",
-      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
-    }
-  ]
+  "crons": [{ "path": "/api/sync", "schedule": "0 0 * * *" }]
 }

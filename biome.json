@@ -31,9 +31,24 @@
   },
   "json": {
     "formatter": {
-      "trailingCommas": "all"
+      "trailingCommas": "none"
     }
   },
+  "overrides": [
+    {
+      "includes": ["frontend/components/**", "frontend/app/**"],
+      "linter": {
+        "rules": {
+          "a11y": {
+            "noLabelWithoutControl": "off",
+            "useSemanticElements": "off"
+          },
+          "security": { "noDangerouslySetInnerHtml": "off" },
+          "correctness": { "useExhaustiveDependencies": "off" }
+        }
+      }
+    }
+  ],
   "assist": {
     "enabled": true,
     "actions": {

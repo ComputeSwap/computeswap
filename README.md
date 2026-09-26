@@ -18,7 +18,7 @@ Details:
 
 ## Running the app
 
-You need Foundry ≥ 1.0 (`foundryup`) and Python 3, plus internet access, because the page loads ethers.js from jsdelivr. Run each command below in its own terminal, from this folder:
+You need Foundry ≥ 1.0 (`foundryup`) and Node.js ≥ 20. Run each command below in its own terminal, from this folder:
 
 ```bash
 anvil
@@ -29,10 +29,10 @@ forge script script/DeployLocal.s.sol --rpc-url http://127.0.0.1:8545 --broadcas
 ```
 
 ```bash
-python frontend/serve.py
+cd frontend && npm install && npm run dev
 ```
 
-Then open http://127.0.0.1:5173. `serve.py` is a static file server with browser caching turned off, so edits to the page show up on the next reload.
+Then open http://localhost:3000. The page is a Next.js app: its server indexes the pool's events into a database (an embedded one under `frontend/.pglite/` locally, Postgres on Vercel) and serves the activity table and the shared pool state from there, so the browser only talks to the chain for the wallet's own balances and transactions. See [docs/DEPLOY_UNICHAIN.md](docs/DEPLOY_UNICHAIN.md) for hosting it.
 
 The deploy script also creates the ETH/USDC pool (default start price $1; override with `INIT_PRICE=2500`).
 
@@ -80,7 +80,8 @@ src/
   weights/                         WeightVault (ERC-721), WeightToken (ERC-6909), WeightAuction
 script/DeployLocal.s.sol           local deployment (anvil) for the app
 script/DeployUnichainSepolia.s.sol testnet deployment on Uniswap's PoolManager, see docs/DEPLOY_UNICHAIN.md
-frontend/                          index.html, app.js, curve.js (math, 50/50 solver), charts.js, chain.js
+frontend/                          Next.js app: components/ (the page), lib/app.ts (chain actions), lib/curve.js (math,
+                                   50/50 solver), lib/charts.js, lib/chain.js (ABIs), lib/server/ (indexer, pool state), app/api/
 test/                              43 tests; test/mocks holds an x*y curve used only to check the engine against v4
 python/                            high-precision checks and an independent reference model
 license-mit/                       the previous MIT license, and how to switch back

@@ -1,6 +1,9 @@
 // Canvas charts (no libraries): the pool's curve in reserve space, the liquidity distribution, and the payoff of the
 // ETH weight. All take plain data in human units (see curve.js).
 import * as C from "./curve.js";
+import { fmtNum } from "./format";
+
+export { fmtNum };
 
 function theme() {
   const cs = getComputedStyle(document.documentElement);
@@ -28,23 +31,19 @@ function setup(canvas) {
   return { ctx, w, h };
 }
 
-export function fmtNum(v, digits = 4) {
-  if (!isFinite(v)) return "–";
-  const a = Math.abs(v);
-  if (a !== 0 && (a < 1e-3 || a >= 1e7)) return v.toExponential(2);
-  return v.toLocaleString(undefined, {
-    maximumFractionDigits: a >= 100 ? 2 : digits,
-  });
-}
-
 function niceTicks(min, max, count = 4) {
   const raw = (max - min) / count;
   const p = 10 ** Math.floor(Math.log10(raw));
   const m = raw / p;
   const step = (m < 1.5 ? 1 : m < 3.5 ? 2 : m < 7.5 ? 5 : 10) * p;
   const ticks = [];
-  for (let v = Math.ceil(min / step) * step; v <= max + 1e-9 * step; v += step)
+  for (
+    let v = Math.ceil(min / step) * step;
+    v <= max + 1e-9 * step;
+    v += step
+  ) {
     ticks.push(v);
+  }
   return ticks;
 }
 
@@ -57,19 +56,24 @@ function logTicks(min, max) {
   ) {
     for (const m of [1, 2, 5]) {
       const v = m * 10 ** e;
-      if (v >= min && v <= max) ticks.push(v);
+      if (v >= min && v <= max) {
+        ticks.push(v);
+      }
     }
   }
   if (ticks.length < 3) {
-    for (const m of [1.5, 3, 4, 7])
+    for (const m of [1.5, 3, 4, 7]) {
       for (
         let e = Math.floor(Math.log10(min));
         e <= Math.ceil(Math.log10(max));
         e++
       ) {
         const v = m * 10 ** e;
-        if (v >= min && v <= max) ticks.push(v);
+        if (v >= min && v <= max) {
+          ticks.push(v);
+        }
       }
+    }
     ticks.sort((a, b) => a - b);
   }
   return ticks;
@@ -103,7 +107,9 @@ function dot(ctx, x, y, r, fill, stroke) {
 
 function logSpace(a, b, n) {
   const out = [];
-  for (let i = 0; i <= n; i++) out.push(a * (b / a) ** (i / n));
+  for (let i = 0; i <= n; i++) {
+    out.push(a * (b / a) ** (i / n));
+  }
   return out;
 }
 
@@ -127,8 +133,9 @@ function baseline(ctx, t, x0, y0, x1, y1) {
 export function drawReserves(canvas, { positions, price, preview }) {
   const { ctx, w, h } = setup(canvas);
   const t = theme();
-  if (!positions.length || !price)
+  if (!positions.length || !price) {
     return empty(ctx, w, h, t, "No liquidity yet");
+  }
 
   const pad = { l: 44, r: 12, t: 12, b: 26 };
   const W = w - pad.l - pad.r;
@@ -159,10 +166,12 @@ export function drawReserves(canvas, { positions, price, preview }) {
 
   baseline(ctx, t, pad.l, pad.t + H, pad.l + W, pad.t + H);
   baseline(ctx, t, pad.l, pad.t, pad.l, pad.t + H);
-  for (const v of niceTicks(xMin, xMax))
+  for (const v of niceTicks(xMin, xMax)) {
     text(ctx, fmtNum(v, 1), sx(v), pad.t + H + 15, t.muted, "center");
-  for (const v of niceTicks(yMin, yMax))
+  }
+  for (const v of niceTicks(yMin, yMax)) {
     text(ctx, fmtNum(v, 1), pad.l - 6, sy(v) + 4, t.muted, "right");
+  }
   text(ctx, "ETH", pad.l + W, pad.t + H - 6, t.muted, "right");
   text(ctx, "USDC", pad.l + 6, pad.t + 10, t.muted, "left");
 
@@ -179,7 +188,7 @@ export function drawReserves(canvas, { positions, price, preview }) {
   ctx.stroke();
 
   const now = C.totals(positions, price);
-  if (preview && preview.ok) {
+  if (preview?.ok) {
     const path = logSpace(price, preview.price, 60).map((P) =>
       C.totals(positions, P),
     );
@@ -216,7 +225,7 @@ export function drawReserves(canvas, { positions, price, preview }) {
     );
   }
   dot(ctx, sx(now.x), sy(now.y), 5, t.fg);
-  const below = preview && preview.ok && preview.price < price;
+  const below = preview?.ok && preview.price < price;
   text(
     ctx,
     `$${fmtNum(price, 4)}`,
@@ -269,8 +278,9 @@ export function drawLiquidity(
   const px = lx(price);
 
   baseline(ctx, t, pad.l, pad.t + H, pad.l + W, pad.t + H);
-  for (const v of logTicks(pMin, pMax))
-    text(ctx, "$" + fmtNum(v, 2), lx(v), pad.t + H + 15, t.muted, "center");
+  for (const v of logTicks(pMin, pMax)) {
+    text(ctx, `$${fmtNum(v, 2)}`, lx(v), pad.t + H + 15, t.muted, "center");
+  }
 
   const hits = [];
   for (const seg of segments) {
@@ -320,7 +330,7 @@ export function drawLiquidity(
   ctx.lineTo(px, pad.t + H);
   ctx.stroke();
   text(ctx, `$${fmtNum(price, 4)}`, px, 14, t.fg, "center");
-  if (previewPrice && isFinite(previewPrice)) {
+  if (previewPrice && Number.isFinite(previewPrice)) {
     const qx = lx(previewPrice);
     ctx.strokeStyle = t.green;
     ctx.setLineDash([4, 3]);

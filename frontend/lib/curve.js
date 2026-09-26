@@ -50,7 +50,9 @@ export function simulateSwap(
   amount,
   fee = FEE,
 ) {
-  if (!(amount > 0)) return { ok: false, reason: "enter an amount" };
+  if (!(amount > 0)) {
+    return { ok: false, reason: "enter an amount" };
+  }
   const edges = boundaries(positions);
   let remaining = amount;
   let totalIn = 0;
@@ -60,11 +62,12 @@ export function simulateSwap(
     const candidates = zeroForOne
       ? edges.filter((e) => e < P * (1 - 1e-12))
       : edges.filter((e) => e > P * (1 + 1e-12));
-    if (candidates.length === 0)
+    if (candidates.length === 0) {
       return {
         ok: false,
         reason: "not enough liquidity: the swap would leave every range",
       };
+    }
     const next = zeroForOne ? Math.max(...candidates) : Math.min(...candidates);
     const mid = Math.sqrt(P * next);
     const L = activeLiquidity(positions, mid);
@@ -132,17 +135,27 @@ export function simulateSwap(
 /** Principal branch of Lambert W: the w >= -1 with w·e^w = z, for z >= -1/e (Halley's method). */
 export function lambertW(z) {
   const branch = z + 1 / Math.E;
-  if (branch < -1e-15) return NaN;
-  if (branch <= 1e-15) return -1; // the branch point, where Halley's step would divide by zero
-  if (z === 0) return 0;
+  if (branch < -1e-15) {
+    return NaN;
+  }
+  if (branch <= 1e-15) {
+    return -1; // the branch point, where Halley's step would divide by zero
+  }
+  if (z === 0) {
+    return 0;
+  }
   let w = z < 1 ? z * (1 - z) : Math.log(z) - Math.log(Math.log(z) + 1); // starting guess
-  if (z < -0.3) w = -1 + Math.sqrt(2 * (1 + Math.E * z));
+  if (z < -0.3) {
+    w = -1 + Math.sqrt(2 * (1 + Math.E * z));
+  }
   for (let i = 0; i < 50; i++) {
     const ew = Math.exp(w);
     const f = w * ew - z;
     const step = f / (ew * (w + 1) - ((w + 2) * f) / (2 * w + 2));
     w -= step;
-    if (Math.abs(step) <= 1e-15 * (1 + Math.abs(w))) break;
+    if (Math.abs(step) <= 1e-15 * (1 + Math.abs(w))) {
+      break;
+    }
   }
   return w;
 }
@@ -194,11 +207,15 @@ export function priceToSqrtPriceX96(price) {
 
 /** floor(sqrt(n)): integer Newton iteration started above the root */
 function isqrt(n) {
-  if (n < 2n) return n;
+  if (n < 2n) {
+    return n;
+  }
   let x = BigInt(Math.ceil(Math.sqrt(Number(n)) * (1 + 1e-9))) + 1n;
   for (;;) {
     const y = (x + n / x) >> 1n;
-    if (y >= x) return x;
+    if (y >= x) {
+      return x;
+    }
     x = y;
   }
 }

@@ -1,6 +1,6 @@
 # Running the project on a Mac
 
-The same local setup as on Windows: a local chain (anvil), the contracts deployed on it, and the page at http://127.0.0.1:5173.
+The same local setup as on Windows: a local chain (anvil), the contracts deployed on it, and the page at http://localhost:3000.
 
 ## 1. Copy the project folder
 
@@ -83,13 +83,13 @@ anvil
 forge script script/DeployLocal.s.sol --rpc-url http://127.0.0.1:8545 --broadcast --unlocked --sender 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
 ```
 
-**Tab 3: the page.** Leave it running.
+**Tab 3: the page.** Leave it running. The first time, `npm install` downloads the page's dependencies (you need Node.js ≥ 20: `brew install node`).
 
 ```bash
-python3 frontend/serve.py
+cd frontend && npm install && npm run dev
 ```
 
-Then open **http://127.0.0.1:5173**. The deploy script already created the pool; add liquidity to get started. Alice, Bob, Carol and Dave are in the wallet menu.
+Then open **http://localhost:3000**. The deploy script already created the pool; add liquidity to get started. Alice, Bob, Carol and Dave are in the wallet menu.
 
 ## Later sessions
 
@@ -111,5 +111,6 @@ Then open **http://127.0.0.1:5173**. The deploy script already created the pool;
 | `Library not loaded: …libusb…` when running forge | Install Homebrew (brew.sh), then run `brew install libusb`. |
 | The page says "Cannot reach the chain … is anvil running?" | Start tab 1, then reload. |
 | The page loads but shows no pool, or calls fail | anvil was restarted after deploying: run tab 2 again and reload. |
-| `Address already in use` | Another anvil or server is still running. Close it, or find it with `lsof -i :8545` / `lsof -i :5173`. |
-| `python: command not found` | On a Mac the command is `python3`. |
+| `Address already in use` | Another anvil or server is still running. Close it, or find it with `lsof -i :8545` / `lsof -i :3000`. |
+| `npm: command not found` | Install Node.js: `brew install node`, then open a new Terminal window. |
+| The activity table stays empty on anvil | The page's server indexes anvil in the background; it catches up within a few seconds. If anvil was restarted, delete `frontend/.pglite/` and restart tab 3 so the index starts over. |
