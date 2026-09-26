@@ -127,6 +127,7 @@ export type State = {
   buyPct: Record<number, string>;
   openPayoff: Set<string>;
   toast: { msg: string; kind: string; link: string | null } | null;
+  debug: boolean;
 };
 
 export const useStore = create<State>(() => ({
@@ -181,6 +182,7 @@ export const useStore = create<State>(() => ({
   buyPct: {},
   openPayoff: new Set(),
   toast: null,
+  debug: false,
 }));
 
 export const S = () => useStore.getState();

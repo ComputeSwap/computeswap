@@ -380,10 +380,20 @@ canvas.payoff {
   gap: 8px;
   margin-top: 6px;
 }
+.debug-toggle {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 31;
+  opacity: 0.55;
+}
+.debug-toggle.on {
+  opacity: 1;
+}
 .toast {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  bottom: 52px;
   max-width: min(420px, calc(100vw - 40px));
   background: var(--fg);
   color: #fff;

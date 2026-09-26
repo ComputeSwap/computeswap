@@ -12,6 +12,7 @@ import PositionPop from "./PositionPop";
 import ReservesChart from "./ReservesChart";
 import SplitModal from "./SplitModal";
 import Swap from "./Swap";
+import DebugToggle from "./DebugToggle";
 import Toast from "./Toast";
 import Weights from "./Weights";
 
@@ -64,6 +65,7 @@ export default function App({ dep }: { dep: Deployment | null }) {
       </main>
       <PositionPop />
       <SplitModal />
+      <DebugToggle />
       <Toast />
     </>
   );

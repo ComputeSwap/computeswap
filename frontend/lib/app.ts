@@ -54,6 +54,9 @@ declare global {
 // ---------------------------------------------------------------------------------------------------------------------
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
 export function toast(msg: string, kind = "", link: string | null = null) {
+  if (kind === "err" && !S().debug) {
+    return;
+  }
   set({ toast: { msg, kind, link } });
   if (toastTimer) {
     clearTimeout(toastTimer);
@@ -111,6 +114,7 @@ export async function init(dep: Deployment) {
       "err",
     );
   }
+  restoreDebugMode();
   restoreHistoryCache();
   if (local) {
     setAccount(0);
@@ -345,6 +349,23 @@ const historyStorageKey = () => {
   const dep = S().dep as Deployment;
   return `logCurve-hist:${dep.chainId}:${dep.hook}`;
 };
+
+const DEBUG_STORAGE_KEY = "logCurve-debug";
+
+export function setDebug(on: boolean) {
+  set({ debug: on });
+  try {
+    localStorage.setItem(DEBUG_STORAGE_KEY, on ? "1" : "0");
+  } catch {}
+}
+
+function restoreDebugMode() {
+  try {
+    if (localStorage.getItem(DEBUG_STORAGE_KEY) === "1") {
+      set({ debug: true });
+    }
+  } catch {}
+}
 
 function restoreHistoryCache() {
   try {
@@ -802,6 +823,19 @@ export async function doSplit() {
   ) {
     return;
   }
+  const provider = s.provider as ethers.JsonRpcProvider;
+  const expiry = BigInt(ev.args.expiry);
+  const block = await provider.getBlock("latest");
+  const chainNow = BigInt(block?.timestamp ?? 0);
+  const headroom = expiry > chainNow ? expiry - chainNow : 0n;
+  const requested = BigInt(Math.round(dropMin * 60));
+  const dropSec = requested <= headroom ? requested : headroom;
+  if (dropSec <= 0n) {
+    return toast(
+      "Not enough time left before the weight expires: use a longer expiry or a shorter price drop.",
+      "err",
+    );
+  }
   await send("Start auction", () =>
     call(c.auction, "create", [
       seriesId,
@@ -809,7 +843,7 @@ export async function doSplit() {
       dep.usdc,
       start,
       floor,
-      BigInt(Math.round(dropMin * 60)),
+      dropSec,
     ]),
   );
 }
