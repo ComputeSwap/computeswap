@@ -8,7 +8,7 @@ These are the position's two **weights**. The LP can split one of them off as a 
 
 ## 1. What the ETH weight gives its holder
 
-Your definition: the holder can tell the vault to withdraw the liquidity behind the weight at any time before expiry, **at the price at that moment**. The holder gets the ETH part and the LP gets the USDC part. If ETH has fallen from $1 to $0.80, the position holds more ETH than before, so the weight pays more ETH.
+Definition: the holder can tell the vault to withdraw the liquidity behind the weight at any time before expiry, **at the price at that moment**. The holder gets the ETH part and the LP gets the USDC part. If ETH has fallen from $1 to $0.80, the position holds more ETH than before, so the weight pays more ETH.
 
 | | ETH in the weight | its dollar value $V(P) = P\,x(P)$ |
 |---|---|---|
@@ -20,7 +20,7 @@ Your definition: the holder can tell the vault to withdraw the liquidity behind 
 
 - **Below $p_a$** the weight is already all ETH, a fixed amount, so its dollar value falls with the ETH price.
 - **Inside the range** the ETH amount shrinks as the price rises. Because $x = L(1/P - 1/p_b)$, the dollar value $P\,x$ is linear in $P$ as well.
-- **On a log price axis** (as an earlier version of the app drew it) the same straight lines look curved. The shape itself is two straight lines.
+- **On a log price axis** the same straight lines look curved. The shape itself is two straight lines.
 
 As options, the triangle is exactly
 
@@ -30,7 +30,7 @@ that is, long $L/p_b$ puts struck at $p_b$ and short $L/p_a$ puts struck at $p_a
 
 The holder can exercise at any time before expiry (American style) and is paid in ETH (physical settlement). The USDC weight is the mirror image. It pays $L\ln(P/p_a)$ USDC and grows as ETH rises.
 
-Your example is range 2, $[0.5, 2]$, worth $100 at $1 (L = 83.775):
+Example: range 2, $[0.5, 2]$, worth $100 at $1 (L = 83.775):
 
 | ETH price | ETH weight | worth | USDC left to the LP |
 |---|---|---|---|

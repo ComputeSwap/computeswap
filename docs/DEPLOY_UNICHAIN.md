@@ -171,7 +171,7 @@ Without a `DATABASE_URL`, the server keeps its index in an embedded database und
 - **The page itself.** When someone loads or watches the page and the index is more than a few seconds old, the history request triggers one sync step after it responds. A visited page keeps itself current on any plan.
 - **Alchemy webhook (optional, push).** In the Alchemy dashboard, create an **Address Activity** webhook for the hook, vault and auction addresses on Unichain Sepolia, pointing at `https://<your-app>/api/webhook`, and set its signing key as `ALCHEMY_WEBHOOK_SIGNING_KEY`. The app then indexes each new transaction within seconds of it landing, without polling.
 
-With an Alchemy free-tier key, the first backfill of the ~20k blocks since deploy takes about ten minutes of cron calls (10 blocks per call, 75 compute units each). Optional `historyStartBlock` in `deployments.json` skips older blocks if you do not need activity from deploy time.
+With an Alchemy free-tier key, the first backfill from deploy height to the chain tip takes roughly ten minutes of cron calls at 10 blocks per call (75 compute units each). Optional `historyStartBlock` in `deployments.json` skips older blocks if you do not need activity from deploy time.
 
 **RPC use.** Each visitor's browser now only reads its own wallet's balances and weights and sends transactions. Positions, auctions and the price are read once per block by the server (`/api/state`, cached at the edge for two seconds) and shared by every visitor. The `rpc` in `deployments.json` is still what the browser uses for those wallet reads and for adding the network to the wallet, so a provider URL with a domain allowlist is still recommended there for public sites (`APP_RPC` at deploy time).
 

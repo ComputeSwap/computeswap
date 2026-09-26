@@ -111,7 +111,7 @@ active L:      2.5   |   5.5    |   3   |    7     |  3  |    6    |  3   |  0  
 | `src/libraries/CurvePool.sol` | Pool state, `modifyLiquidity`, `swap`: v4's tick-walking loop, fee growth, positions. |
 | `src/libraries/CurveSwapMath.sol` | v4's `SwapMath.computeSwapStep` with the curve behind an interface, clamped so the curve can't overshoot a tick. |
 | `src/libraries/CurveLiquidityAmounts.sol` | Converts between liquidity and token amounts. |
-| `src/curves/LogCurve.sol`, `src/libraries/LogCurveMath.sol` | Your curve, with directed rounding. |
+| `src/curves/LogCurve.sol`, `src/libraries/LogCurveMath.sol` | The log curve, with directed rounding. |
 | `src/interfaces/ICurve.sol` | The four functions the engine asks of a curve (the same signatures as Uniswap's `SqrtPriceMath`), and rounding rules R1–R5. |
 | `src/weights/*` | Position NFTs, ETH weights, Dutch auctions ([WEIGHTS.md](WEIGHTS.md)). |
 
@@ -145,11 +145,11 @@ active L:      2.5   |   5.5    |   3   |    7     |  3  |    6    |  3   |  0  
 
 ---
 
-## 7. Verification: 43 tests in 10 suites, plus 3 Python checks
+## 7. Verification: forge tests plus 3 Python checks
 
 | check | what it shows | result |
 |---|---|---|
-| `LogCurveHook.t.sol` | Deposits follow the closed form, and your invariant holds. Same-range LPs are pro rata, and active L equals the sum of in-range L across tick crossings. Also covers closed-form swaps, exact-out, no free round trip, all-or-nothing, price mirroring, fees only in range, native ETH, per-pool isolation, access control, and liquidity sizing. | 15 tests, including a 200-run solvency fuzz |
+| `LogCurveHook.t.sol` | Deposits follow the closed form, and the invariant holds. Same-range LPs are pro rata, and active L equals the sum of in-range L across tick crossings. Also covers closed-form swaps, exact-out, no free round trip, all-or-nothing, price mirroring, fees only in range, native ETH, per-pool isolation, access control, and liquidity sizing. | 15 tests, including a 200-run solvency fuzz |
 | `CurveHookInvariants.t.sol` | Random LP and swap activity on a live pool: active L = Σ in-range L, reserves ≥ Σ(principal + fees) after every operation, pro-rata fees, no round-trip profit, and everyone can exit | 512 × 30-operation sequences |
 | `CurveConformance.t.sol` | The necessary conditions of R1–R5, additivity, and monotonicity | 7 properties, fuzzed |
 | `CurveDump` + `check_curve.py` | The log curve against 150-digit exact math | 0 violations |

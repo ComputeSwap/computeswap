@@ -4,16 +4,12 @@ The project is now licensed under the **Business Source License 1.1** (BUSL-1.1)
 
 This folder keeps the earlier MIT license so you can go back to it.
 
-## Before you publish
-
-In `../LICENSE` and in `LICENSE` here, replace `[YOUR NAME OR COMPANY]` with the legal name of the person or company that owns the code.
-
-The other BUSL parameters follow Uniswap v4-core:
+The BUSL parameters follow Uniswap v4-core:
 
 | parameter | this project | Uniswap v4-core |
 |---|---|---|
 | Change License | MIT License | MIT License |
-| Change Date | 2030-09-22 (four years) | about four years after release |
+| Change Date | 2030-09-26 (four years) | about four years after release |
 | Additional Use Grant | None | a list published at an ENS name |
 
 Only the Parameters block may be edited. Covenant 4 of the license forbids changing any other part of the text.

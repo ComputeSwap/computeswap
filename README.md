@@ -45,7 +45,7 @@ The deploy script creates an ETH/USDC pool (default start price $1; override wit
 - **Add liquidity:** enter an amount and a price range, or tick **50 / 50**. With 50 / 50 on, type either the min or the max price and the other is solved so the deposit is half ETH, half USDC at today's price (for example, at $1 a max of $2 gives a min of $0.6065).
 - **Liquidity chart:** shows every position as a band. The part held as USDC is green and the part held as ETH is navy. Click a band to withdraw that position or sell its ETH weight.
 - **Sell popup:** after you add liquidity, a popup offers to sell the new position's ETH weight in a Dutch auction.
-- **History:** every operation on the pool, read from the chain, with who did it, the ETH and USDC amounts, and the price at the time. It covers creating the pool, adding liquidity, withdrawals, buys and sells, splitting and auctioning ETH weights, buying them, exercising, cancelling and merging.
+- **History:** every operation on the pool, indexed by the app server from chain events, with who did it, the ETH and USDC amounts, and the price at the time. It covers creating the pool, adding liquidity, withdrawals, buys and sells, splitting and auctioning ETH weights, buying them, exercising, cancelling and merging.
 
 **Right side:**
 - **Swap:** Buy or Sell, in ETH or USDC.
@@ -64,7 +64,7 @@ script/DeployLocal.s.sol           local deployment (anvil) for the app
 script/DeployUnichainSepolia.s.sol testnet deployment on Uniswap's PoolManager
 frontend/                          Next.js app: components/ (the page), lib/app.ts (chain actions), lib/curve.js (math,
                                    50/50 solver), lib/charts.js, lib/chain.js (ABIs), lib/server/ (indexer, pool state), app/api/
-test/                              43 tests; test/mocks holds an x*y curve used only to check the engine against v4
+test/                              forge tests; test/mocks holds an x*y curve used only to check the engine against v4
 python/                            high-precision checks and an independent reference model
 ```
 

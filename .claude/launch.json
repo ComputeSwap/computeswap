@@ -6,12 +6,6 @@
 			"runtimeExecutable": "anvil",
 			"runtimeArgs": ["--port", "8545"],
 			"port": 8545
-		},
-		{
-			"name": "frontend",
-			"runtimeExecutable": "python",
-			"runtimeArgs": ["frontend/serve.py"],
-			"port": 5173
 		}
 	]
 }
