@@ -1111,7 +1111,6 @@ function syncSwapUnits() {
   const recvTok = recvEth ? "ETH" : "USDC";
   $("swap-pay-unit").textContent = payTok;
   $("swap-receive-unit").textContent = recvTok;
-  $("swap-receive-label").textContent = `Receive ${recvTok}`;
   $("swap-button").textContent = `Pay ${payTok}`;
 }
 
