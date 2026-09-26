@@ -1157,7 +1157,14 @@ function updateSwapPreview() {
   clearTimeout(quoteTimer);
   if (!S.pool.initialized || !(amount > 0)) {
     $("swap-preview").innerHTML = "";
-    if (!(amount > 0)) setSwapFields("", "");
+    if (!S.swapFieldSync && !(amount > 0)) {
+      const other = S.swapLead === "pay" ? $("swap-receive") : $("swap-pay");
+      if (other.value !== "") {
+        S.swapFieldSync = true;
+        other.value = "";
+        S.swapFieldSync = false;
+      }
+    }
     return drawCharts();
   }
   const sim = C.simulateSwap(
