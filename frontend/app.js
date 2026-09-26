@@ -52,9 +52,10 @@ const S = {
   chainTimeAt: 0,
   chainBlock: 0,
   busy: false,
-  side: "buy",
-  unit: "ETH",
+  swapReceive: "ETH",
+  swapLead: "receive",
   swapPreview: null,
+  swapFieldSync: false,
   add: null,
   addGhost: null,
   addActive: false,
@@ -1076,46 +1077,63 @@ async function doSplit() {
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
-// swaps: Buy/Sell x the unit typed (ETH or USDC) picks exact-in or exact-out
+// swaps: pay / receive fields; receive token toggle; last-edited field is exact in or exact out
 // ---------------------------------------------------------------------------------------------------------------------
-const PLACEHOLDER = {
-  buyETH: "ETH to buy",
-  buyUSDC: "USDC to spend",
-  sellETH: "ETH to sell",
-  sellUSDC: "USDC to receive",
-};
 const settings = { takeClaims: false, settleUsingBurn: false };
 
+function syncSwapUnits() {
+  const recvEth = S.swapReceive === "ETH";
+  $("swap-pay-unit").textContent = recvEth ? "USDC" : "ETH";
+  $("swap-receive-unit").textContent = recvEth ? "ETH" : "USDC";
+}
+
 function swapShape() {
-  const zeroForOne = S.side === "sell";
+  const recvEth = S.swapReceive === "ETH";
+  const payToken = recvEth ? "USDC" : "ETH";
+  const receiveToken = recvEth ? "ETH" : "USDC";
+  const leadPay = S.swapLead === "pay";
   return {
-    zeroForOne,
-    exactIn: zeroForOne ? S.unit === "ETH" : S.unit === "USDC",
-    inToken: zeroForOne ? "ETH" : "USDC",
-    outToken: zeroForOne ? "USDC" : "ETH",
-    amountToken: S.unit,
+    zeroForOne: !recvEth,
+    exactIn: leadPay,
+    inToken: payToken,
+    outToken: receiveToken,
+    amountToken: leadPay ? payToken : receiveToken,
   };
+}
+
+function swapTypedAmount() {
+  const el = S.swapLead === "pay" ? $("swap-pay") : $("swap-receive");
+  return Number(el.value);
+}
+
+function fmtSwapField(token, n) {
+  if (!(n > 0)) return "";
+  return token === "ETH" ? String(+n.toPrecision(8)) : String(+n.toPrecision(6));
+}
+
+function setSwapFields(pay, receive) {
+  S.swapFieldSync = true;
+  $("swap-pay").value = pay;
+  $("swap-receive").value = receive;
+  S.swapFieldSync = false;
 }
 
 function showQuote(shape, amountIn, amountOut, priceAfter) {
   const ethAmt = shape.zeroForOne ? amountIn : amountOut;
   const usdcAmt = shape.zeroForOne ? amountOut : amountIn;
-  const main = shape.exactIn
-    ? `Get <b>${fmtNum(amountOut, 4)} ${shape.outToken}</b>`
-    : `Pay <b>${fmtNum(amountIn, 4)} ${shape.inToken}</b>`;
   $("swap-preview").innerHTML =
-    `${main} <span class="sub">· avg $${fmtNum(usdcAmt / ethAmt, 4)} · price → $${fmtNum(priceAfter, 4)}</span>`;
+    `<span class="sub">avg $${fmtNum(usdcAmt / ethAmt, 4)} · price → $${fmtNum(priceAfter, 4)}</span>`;
 }
 
 let quoteTimer = null;
 function updateSwapPreview() {
   const shape = swapShape();
-  $("swap-amount").placeholder = PLACEHOLDER[S.side + S.unit];
-  const amount = Number($("swap-amount").value);
+  const amount = swapTypedAmount();
   S.swapPreview = null;
   clearTimeout(quoteTimer);
   if (!S.pool.initialized || !(amount > 0)) {
     $("swap-preview").innerHTML = "";
+    if (!(amount > 0)) setSwapFields("", "");
     return drawCharts();
   }
   const sim = C.simulateSwap(
@@ -1129,7 +1147,11 @@ function updateSwapPreview() {
     $("swap-preview").innerHTML = `<span class="bad">${sim.reason}</span>`;
     return drawCharts();
   }
-  const key = `${S.side}|${S.unit}|${amount}`;
+  setSwapFields(
+    fmtSwapField(shape.inToken, sim.amountIn),
+    fmtSwapField(shape.outToken, sim.amountOut),
+  );
+  const key = `${S.swapReceive}|${S.swapLead}|${amount}`;
   S.swapPreview = {
     ...sim,
     zeroForOne: shape.zeroForOne,
@@ -1139,17 +1161,17 @@ function updateSwapPreview() {
   };
   showQuote(shape, sim.amountIn, sim.amountOut, sim.price);
   drawCharts();
-  // then replace the estimate with the chain's exact quote
   quoteTimer = setTimeout(async () => {
     const q = await quoteOnChain(shape, amount, sim);
     if (!q || S.swapPreview?.key !== key) return;
     const [e, u] = [toEth(abs(q.eth)), toUsdc(abs(q.usdc))];
-    showQuote(
-      shape,
-      shape.zeroForOne ? e : u,
-      shape.zeroForOne ? u : e,
-      sim.price,
+    const amountIn = shape.zeroForOne ? e : u;
+    const amountOut = shape.zeroForOne ? u : e;
+    setSwapFields(
+      fmtSwapField(shape.inToken, amountIn),
+      fmtSwapField(shape.outToken, amountOut),
     );
+    showQuote(shape, amountIn, amountOut, sim.price);
   }, 250);
 }
 
@@ -1196,7 +1218,7 @@ async function quoteOnChain(shape, amount, sim) {
 
 async function executeSwap() {
   const shape = swapShape();
-  const amount = Number($("swap-amount").value);
+  const amount = swapTypedAmount();
   const sim = C.simulateSwap(
     S.positions,
     S.pool.price,
@@ -1211,18 +1233,14 @@ async function executeSwap() {
     !(await ensureUsdcAllowance(S.dep.router, maxUsdcIn))
   )
     return;
-  const amt = fmtNum(amount, 6);
-  const label =
-    shape.amountToken === "ETH"
-      ? `${shape.zeroForOne ? "Sell" : "Buy"} ${amt} ETH`
-      : shape.zeroForOne
-        ? `Sell ETH for ${amt} USDC`
-        : `Buy ETH with ${amt} USDC`;
+  const payAmt = fmtNum(sim.amountIn, shape.inToken === "ETH" ? 6 : 4);
+  const recvAmt = fmtNum(sim.amountOut, shape.outToken === "ETH" ? 6 : 4);
+  const label = `Pay ${payAmt} ${shape.inToken} for ${recvAmt} ${shape.outToken}`;
   const receipt = await send(label, () =>
     call(S.c.router, "swap", [S.key, params, settings, "0x"], { value }),
   );
   if (receipt) {
-    $("swap-amount").value = "";
+    setSwapFields("", "");
     updateSwapPreview();
   }
 }
@@ -1412,20 +1430,28 @@ function wire() {
     );
   }
 
-  // swap
-  const seg = (id, key) =>
-    $(id).addEventListener("click", (e) => {
-      const b = e.target.closest("button");
-      if (!b) return;
-      $(id)
-        .querySelectorAll("button")
-        .forEach((x) => x.classList.toggle("on", x === b));
-      S[key] = b.dataset[key];
-      updateSwapPreview();
-    });
-  seg("swap-side", "side");
-  seg("swap-unit", "unit");
-  $("swap-amount").addEventListener("input", updateSwapPreview);
+  syncSwapUnits();
+  $("swap-receive-token").addEventListener("click", (e) => {
+    const b = e.target.closest("button");
+    if (!b?.dataset.receive) return;
+    $("swap-receive-token")
+      .querySelectorAll("button")
+      .forEach((x) => x.classList.toggle("on", x === b));
+    S.swapReceive = b.dataset.receive;
+    syncSwapUnits();
+    setSwapFields("", "");
+    updateSwapPreview();
+  });
+  $("swap-pay").addEventListener("input", () => {
+    if (S.swapFieldSync) return;
+    S.swapLead = "pay";
+    updateSwapPreview();
+  });
+  $("swap-receive").addEventListener("input", () => {
+    if (S.swapFieldSync) return;
+    S.swapLead = "receive";
+    updateSwapPreview();
+  });
   $("swap-form").addEventListener("submit", (e) => {
     e.preventDefault();
     exclusive(executeSwap);

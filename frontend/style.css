@@ -215,10 +215,18 @@ body.busy button:not(.seg button):not(#split-cancel) {
   background: var(--fg);
   color: #fff;
 }
-.swap-row {
+.swap-head {
   display: flex;
-  gap: 8px;
-  align-items: stretch;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.swap-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
 }
 
 /* ---- charts ---- */

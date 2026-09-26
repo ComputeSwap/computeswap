@@ -40,16 +40,22 @@
       <section>
         <h2>Swap</h2>
         <form id="swap-form">
-          <div class="swap-row">
-            <div class="seg" id="swap-side">
-              <button type="button" data-side="buy" class="on">Buy</button>
-              <button type="button" data-side="sell">Sell</button>
+          <div class="swap-head">
+            <span class="muted">Receive</span>
+            <div class="seg" id="swap-receive-token">
+              <button type="button" data-receive="ETH" class="on">ETH</button>
+              <button type="button" data-receive="USDC">USDC</button>
             </div>
-            <input id="swap-amount" type="number" step="any" placeholder="ETH to buy" />
-            <div class="seg" id="swap-unit">
-              <button type="button" data-unit="ETH" class="on">ETH</button>
-              <button type="button" data-unit="USDC">USDC</button>
-            </div>
+          </div>
+          <div class="swap-fields">
+            <label
+              >Pay <span id="swap-pay-unit" class="num">USDC</span
+              ><input id="swap-pay" type="number" step="any" placeholder="0"
+            /></label>
+            <label
+              >Receive <span id="swap-receive-unit" class="num">ETH</span
+              ><input id="swap-receive" type="number" step="any" placeholder="0"
+            /></label>
           </div>
           <p id="swap-preview" class="line"></p>
           <button type="submit" id="swap-button">Swap</button>
