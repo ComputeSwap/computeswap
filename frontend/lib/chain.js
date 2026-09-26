@@ -184,6 +184,10 @@ export function decodeError(err) {
   if (err?.code === "INSUFFICIENT_FUNDS") {
     return "Not enough ETH for this transaction and its gas.";
   }
+  const msg = `${err?.shortMessage || ""} ${err?.message || ""}`.toLowerCase();
+  if (msg.includes("nonce too low")) {
+    return "Your wallet's transaction counter is out of date. Wait a few seconds and try again, or reset the account in MetaMask (Settings → Advanced → Clear activity tab data).";
+  }
   const data = findRevertData(err);
   if (data) {
     return describe(data);

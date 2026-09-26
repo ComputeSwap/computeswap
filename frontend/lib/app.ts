@@ -469,32 +469,65 @@ type State = import("./store").State;
 // ---------------------------------------------------------------------------------------------------------------------
 type TxResponse = ethers.ContractTransactionResponse;
 
-export async function send(label: string, fn: () => Promise<TxResponse>) {
-  const dep = S().dep as Deployment;
-  toast(`${label}…`);
-  try {
-    const receipt = await (await fn()).wait();
-    if (!receipt) {
-      throw new Error("no receipt");
-    }
-    toast(
-      `✓ ${label}`,
-      "ok",
-      dep.explorer ? `${dep.explorer}/tx/${receipt.hash}` : null,
-    );
-    await scheduleRefresh();
-    void loadHistory();
-    return receipt;
-  } catch (e) {
-    const err = e as { receipt?: { status: number }; data?: unknown };
-    const mined = err?.receipt && err.receipt.status === 0;
-    toast(
-      `${label} failed: ${mined && !err.data ? "reverted on-chain (the pool moved after the estimate?)" : decodeError(e)}`,
-      "err",
-    );
-    await scheduleRefresh();
-    return null;
+let txQueue: Promise<unknown> = Promise.resolve();
+
+function enqueueTx<T>(fn: () => Promise<T>): Promise<T> {
+  const next = txQueue.then(fn, fn);
+  txQueue = next.then(
+    () => undefined,
+    () => undefined,
+  );
+  return next;
+}
+
+async function pendingNonce(
+  runner: ethers.ContractRunner,
+): Promise<number | undefined> {
+  if (!("getAddress" in runner) || !runner.provider) {
+    return undefined;
   }
+  const signer = runner as ethers.Signer;
+  const address = await signer.getAddress();
+  return signer.provider.getTransactionCount(address, "pending");
+}
+
+export async function send(
+  label: string,
+  fn: () => Promise<TxResponse>,
+  opts: { refresh?: boolean } = {},
+) {
+  return enqueueTx(async () => {
+    const dep = S().dep as Deployment;
+    const refreshAfter = opts.refresh !== false;
+    toast(`${label}…`);
+    try {
+      const receipt = await (await fn()).wait();
+      if (!receipt) {
+        throw new Error("no receipt");
+      }
+      toast(
+        `✓ ${label}`,
+        "ok",
+        dep.explorer ? `${dep.explorer}/tx/${receipt.hash}` : null,
+      );
+      if (refreshAfter) {
+        await scheduleRefresh();
+        void loadHistory();
+      }
+      return receipt;
+    } catch (e) {
+      const err = e as { receipt?: { status: number }; data?: unknown };
+      const mined = err?.receipt && err.receipt.status === 0;
+      toast(
+        `${label} failed: ${mined && !err.data ? "reverted on-chain (the pool moved after the estimate?)" : decodeError(e)}`,
+        "err",
+      );
+      if (refreshAfter) {
+        await scheduleRefresh();
+      }
+      return null;
+    }
+  });
 }
 
 /** Sends a contract call with 30% gas headroom: a swap that lands after another one may walk more ticks. */
@@ -504,12 +537,16 @@ export async function call(
   args: unknown[],
   overrides: Record<string, unknown> = {},
 ): Promise<TxResponse> {
+  const runner = contract.runner as ethers.ContractRunner | null;
+  const nonce = runner ? await pendingNonce(runner) : undefined;
+  const base =
+    nonce === undefined ? overrides : { ...overrides, nonce };
   const estimate = (await contract[method].estimateGas(
     ...args,
-    overrides,
+    base,
   )) as bigint;
   return contract[method](...args, {
-    ...overrides,
+    ...base,
     gasLimit: (estimate * 13n) / 10n + 20_000n,
   });
 }
@@ -806,8 +843,10 @@ export async function doSplit() {
   }
   const duration = BigInt(Math.round(minutes * 60));
   set({ splitFor: null });
-  const receipt = await send("Split off the ETH weight", () =>
-    call(c.vault, "split", [pos.id, units, 0, duration]),
+  const receipt = await send(
+    "Split off the ETH weight",
+    () => call(c.vault, "split", [pos.id, units, 0, duration]),
+    { refresh: false },
   );
   const ev = receipt && parseLogs(receipt, c.vault, "Split");
   if (!ev) {
@@ -817,15 +856,22 @@ export async function doSplit() {
   const start = ethers.parseUnits(startPrice.toFixed(6), 6);
   const floor = ethers.parseUnits(floorPrice.toFixed(6), 6);
   if (
-    !(await send("Approve the weight", () =>
-      call(c.weights, "approve", [dep.auction, seriesId, units]),
+    !(await send(
+      "Approve the weight",
+      () => call(c.weights, "approve", [dep.auction, seriesId, units]),
+      { refresh: false },
     ))
   ) {
     return;
   }
-  const provider = s.provider as ethers.JsonRpcProvider;
   const expiry = BigInt(ev.args.expiry);
-  const block = await provider.getBlock("latest");
+  const readProvider =
+    c.auction.runner &&
+    "provider" in c.auction.runner &&
+    c.auction.runner.provider
+      ? c.auction.runner.provider
+      : (s.provider as ethers.Provider);
+  const block = await readProvider.getBlock("latest");
   const chainNow = BigInt(block?.timestamp ?? 0);
   const headroom = expiry > chainNow ? expiry - chainNow : 0n;
   const requested = BigInt(Math.round(dropMin * 60));
