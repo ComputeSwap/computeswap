@@ -77,6 +77,31 @@ const toUsdc = (units) => Number(ethers.formatUnits(units, 6));
 const fEth = (wei, d = 4) => fmtNum(toEth(wei), d);
 const fUsdc = (units, d = 4) => fmtNum(toUsdc(units), d);
 const abs = (v) => (v < 0n ? -v : v);
+function filterDecimal(raw, maxDec) {
+  let s = String(raw ?? "").replace(/[^\d.]/g, "");
+  const dot = s.indexOf(".");
+  if (dot !== -1) {
+    s = s.slice(0, dot + 1) + s.slice(dot + 1).replace(/\./g, "");
+  }
+  if (maxDec != null && dot !== -1) {
+    const [a, b] = s.split(".");
+    s = `${a}.${b.slice(0, maxDec)}`;
+  }
+  return s;
+}
+function parseAmount(raw) {
+  const s = String(raw ?? "").trim();
+  if (!s || s === ".") return NaN;
+  const n = Number(s);
+  return Number.isFinite(n) && n >= 0 ? n : NaN;
+}
+function bindDecimalInput(el, maxDec, onInput) {
+  el.addEventListener("input", () => {
+    const v = filterDecimal(el.value, maxDec);
+    if (v !== el.value) el.value = v;
+    onInput?.();
+  });
+}
 const short = (addr) => addr.slice(0, 6) + "…" + addr.slice(-4);
 const nameOf = (addr) => {
   const i = S.signers.findIndex(
@@ -539,7 +564,7 @@ function renderWeights() {
         ? `<button class="small ghost" data-act="cancel" data-auction="${a.id}">Cancel</button>`
         : announced
           ? ""
-          : `<input type="number" data-auction="${a.id}" value="${S.buyPct[a.id] ?? 100}" min="1" max="100" aria-label="Share to buy (%)" /> %
+          : `<input type="text" inputmode="decimal" autocomplete="off" data-auction="${a.id}" value="${S.buyPct[a.id] ?? 100}" aria-label="Share to buy (%)" /> %
            <button class="small" data-act="buy" data-auction="${a.id}">Buy</button>`);
     rows.push(`<div class="witem"><div class="item">
       <div>For sale: position #${s.positionId}${pos ? ` <span class="sub">$${fmtNum(pos.pa, 4)}–$${fmtNum(pos.pb, 4)}</span>` : ""}<br>
@@ -880,9 +905,9 @@ async function updateAddPreview() {
   if (!S.pool.initialized) return drawCharts();
   const P = S.pool.price;
   const spacing = S.dep.tickSpacing;
-  const value = Number($("add-value").value);
-  let lo = Number($("add-lo").value);
-  let hi = Number($("add-hi").value);
+  const value = parseAmount($("add-value").value);
+  let lo = parseAmount($("add-lo").value);
+  let hi = parseAmount($("add-hi").value);
   let tl;
   let tu;
   if ($("add-5050").checked) {
@@ -920,7 +945,6 @@ async function updateAddPreview() {
     tl = C.priceToTick(lo, spacing);
     tu = C.priceToTick(hi, spacing);
   }
-  $("add-hi").min = String(lo); // the spinner never steps the max below the min
   if (tl >= tu)
     return fail("The range is narrower than one tick: widen it.", "add-hi");
   if (!(value > 0)) return fail("Enter an amount above $0.", "add-value");
@@ -976,7 +1000,7 @@ async function executeAdd() {
 // selling the ETH weight (pop-up after adding liquidity, or from a position's pop-over)
 // ---------------------------------------------------------------------------------------------------------------------
 function splitShare() {
-  return Math.min(Math.max(Number($("split-share").value) / 100, 0.0001), 1);
+  return Math.min(Math.max(parseAmount($("split-share").value) / 100, 0.0001), 1);
 }
 
 function openSplit(positionId) {
@@ -1004,8 +1028,8 @@ function updateSplit(resetPrices) {
     ).toFixed(2);
   }
   const lines = [
-    { value: Number($("auction-start").value), label: "start" },
-    { value: Number($("auction-floor").value), label: "floor" },
+    { value: parseAmount($("auction-start").value), label: "start" },
+    { value: parseAmount($("auction-floor").value), label: "floor" },
   ].filter((l) => l.value >= 0);
   drawWeightPayoff($("payoff-chart"), {
     pa: pos.pa,
@@ -1021,11 +1045,11 @@ async function doSplit() {
   if (!pos) return;
   const units =
     (pos.liquidity * BigInt(Math.round(splitShare() * 10000))) / 10000n;
-  const minutes = Number($("split-minutes").value);
-  const dropMin = Number($("auction-drop").value);
-  const startPrice = Number($("auction-start").value);
-  const floorPrice = Number($("auction-floor").value);
-  if (!(Number($("split-share").value) > 0))
+  const minutes = parseAmount($("split-minutes").value);
+  const dropMin = parseAmount($("auction-drop").value);
+  const startPrice = parseAmount($("auction-start").value);
+  const floorPrice = parseAmount($("auction-floor").value);
+  if (!(parseAmount($("split-share").value) > 0))
     return toast("Choose a share of the position above 0%.", "err");
   if (!(minutes > 0) || !(dropMin > 0)) {
     return toast("Expiry and price drop must both be above 0.", "err");
@@ -1051,11 +1075,11 @@ async function doSplit() {
   if (!ev) return;
   const seriesId = ev.args.seriesId;
   const start = ethers.parseUnits(
-    Number($("auction-start").value).toFixed(6),
+    parseAmount($("auction-start").value).toFixed(6),
     6,
   );
   const floor = ethers.parseUnits(
-    Number($("auction-floor").value).toFixed(6),
+    parseAmount($("auction-floor").value).toFixed(6),
     6,
   );
   if (
@@ -1103,7 +1127,7 @@ function swapShape() {
 
 function swapTypedAmount() {
   const el = S.swapLead === "pay" ? $("swap-pay") : $("swap-receive");
-  return Number(el.value);
+  return parseAmount(el.value);
 }
 
 function fmtSwapField(token, n) {
@@ -1269,11 +1293,30 @@ function wire() {
     closePop();
     await scheduleRefresh();
   });
-  document.querySelectorAll("input[type=number]").forEach((el) => {
-    el.min = el.min || "0";
-    el.addEventListener("keydown", (e) => {
-      if (["-", "+", "e", "E"].includes(e.key)) e.preventDefault();
-    });
+  bindDecimalInput($("add-value"), 6, null);
+  bindDecimalInput($("add-lo"), 12, null);
+  bindDecimalInput($("add-hi"), 12, null);
+  bindDecimalInput($("swap-pay"), 18, () => {
+    if (S.swapFieldSync) return;
+    S.swapLead = "pay";
+    updateSwapPreview();
+  });
+  bindDecimalInput($("swap-receive"), 18, () => {
+    if (S.swapFieldSync) return;
+    S.swapLead = "receive";
+    updateSwapPreview();
+  });
+  bindDecimalInput($("split-share"), 4, null);
+  bindDecimalInput($("split-minutes"), 6, null);
+  bindDecimalInput($("auction-drop"), 6, null);
+  bindDecimalInput($("auction-start"), 12, null);
+  bindDecimalInput($("auction-floor"), 12, null);
+  $("weights").addEventListener("input", (e) => {
+    const el = e.target.closest("input[data-auction]");
+    if (!el) return;
+    const v = filterDecimal(el.value, 4);
+    if (v !== el.value) el.value = v;
+    S.buyPct[el.dataset.auction] = v;
   });
 
   // add liquidity
@@ -1420,7 +1463,10 @@ function wire() {
     if (b.dataset.act === "cancel")
       return send("Cancel auction", () => call(S.c.auction, "cancel", [a.id]));
     // the share comes from state: the refresh that precedes every action re-renders this list
-    const share = Math.min(Math.max(Number(S.buyPct[a.id] ?? 100), 0.01), 100);
+    const share = Math.min(
+      Math.max(parseAmount(S.buyPct[a.id] ?? 100), 0.01),
+      100,
+    );
     const amount = (a.remaining * BigInt(Math.round(share * 100))) / 10000n;
     const cost = await S.c.auction.quote(a.id, amount);
     const maxCost = cost + cost / 100n + 1n; // the price only falls, so this is generous
@@ -1440,16 +1486,6 @@ function wire() {
     S.swapReceive = b.dataset.receive;
     syncSwapUnits();
     setSwapFields("", "");
-    updateSwapPreview();
-  });
-  $("swap-pay").addEventListener("input", () => {
-    if (S.swapFieldSync) return;
-    S.swapLead = "pay";
-    updateSwapPreview();
-  });
-  $("swap-receive").addEventListener("input", () => {
-    if (S.swapFieldSync) return;
-    S.swapLead = "receive";
     updateSwapPreview();
   });
   $("swap-form").addEventListener("submit", (e) => {
