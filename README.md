@@ -6,7 +6,7 @@ $$xe^{y} = e $$
 
 We can concentrate the liquidity within a range using the following parameters a and b:
 
-$$[p_a, p_b]:\qquad (x + p_b^{-1})e^{y + 1 + \ln p_a} = e$$
+$$[p_a, p_b]:\qquad (x + p_b^{-1})e^{(1+y+\ln p_a)} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC.
 
@@ -58,12 +58,11 @@ src/
   libraries/                       ticks, fee growth and the swap loop (CurvePool, CurveSwapMath, ...)
   weights/                         WeightVault (ERC-721), WeightToken (ERC-6909), WeightAuction
 script/DeployLocal.s.sol           local deployment (anvil) for the app
-script/DeployUnichainSepolia.s.sol testnet deployment on Uniswap's PoolManager, see docs/DEPLOY_UNICHAIN.md
+script/DeployUnichainSepolia.s.sol testnet deployment on Uniswap's PoolManager
 frontend/                          Next.js app: components/ (the page), lib/app.ts (chain actions), lib/curve.js (math,
                                    50/50 solver), lib/charts.js, lib/chain.js (ABIs), lib/server/ (indexer, pool state), app/api/
 test/                              43 tests; test/mocks holds an x*y curve used only to check the engine against v4
 python/                            high-precision checks and an independent reference model
-license-mit/                       the previous MIT license, and how to switch back
 ```
 
 ## Tests
@@ -75,6 +74,4 @@ forge test
 ```bash
 forge test --match-contract "UserScenario|WeightsTest" -vv
 ```
-| Vectorized/solady | `2afba69bf67b78dd4abeadcc696052b3a6f71499` | MIT |
-
-This is a prototype and has **not been audited**.
+This prototype has **not been audited**.
