@@ -72,6 +72,20 @@ The whole deployment costs less than 0.0001 ETH. It's about 15 million gas at ro
 
 ## 3. Deploy
 
+### GitHub Actions (optional)
+
+Workflow **Deploy Unichain Sepolia** (`.github/workflows/deploy-unichain-sepolia.yml`) runs manually from the Actions tab. Secrets never live in the repo; add them under **Settings → Secrets and variables → Actions** (and optionally gate live deploys with an **Environment** named `unichain-sepolia`):
+
+| Secret | Required when broadcasting | Purpose |
+|---|---|---|
+| `UNICHAIN_DEPLOYER_PRIVATE_KEY` | yes | Deployer key (`forge script --private-key`) |
+| `UNICHAIN_RPC_URL` | no | RPC for simulation and broadcast (defaults to the public Unichain Sepolia URL) |
+| `UNICHAIN_APP_RPC` | no | RPC written into `frontend/deployments.json` as `APP_RPC` (use a provider URL with domain allowlisting for the hosted app) |
+
+First run: leave **Broadcast** off to simulate only (no deployer secret needed). Turn **Broadcast** on for a live deploy; download `deployments-unichain-sepolia` from the run artifacts and copy `deployments.json` into `frontend/` before publishing the static site.
+
+### Local deploy
+
 From the project folder, do a dry run first. It simulates everything and sends nothing:
 
 ```bash

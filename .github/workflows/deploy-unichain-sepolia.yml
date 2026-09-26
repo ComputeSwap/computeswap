@@ -1,0 +1,59 @@
+name: Deploy Unichain Sepolia
+
+on:
+  workflow_dispatch:
+    inputs:
+      broadcast:
+        description: Broadcast on-chain (live deploy)
+        type: boolean
+        default: false
+      init_price:
+        description: Starting ETH price in USDC (whole dollars)
+        type: string
+        default: "2500"
+
+concurrency:
+  group: deploy-unichain-sepolia
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: unichain-sepolia
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Simulate or deploy
+        env:
+          INIT_PRICE: ${{ inputs.init_price }}
+          APP_RPC: ${{ secrets.UNICHAIN_APP_RPC }}
+          UNICHAIN_RPC_URL: ${{ secrets.UNICHAIN_RPC_URL }}
+          UNICHAIN_DEPLOYER_PRIVATE_KEY: ${{ secrets.UNICHAIN_DEPLOYER_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          RPC="${UNICHAIN_RPC_URL:-https://sepolia.unichain.org}"
+          ARGS=(--rpc-url "$RPC")
+          if [ "${{ inputs.broadcast }}" = "true" ]; then
+            if [ -z "${UNICHAIN_DEPLOYER_PRIVATE_KEY:-}" ]; then
+              echo "Set repository secret UNICHAIN_DEPLOYER_PRIVATE_KEY before broadcasting."
+              exit 1
+            fi
+            ARGS+=(--broadcast --private-key "$UNICHAIN_DEPLOYER_PRIVATE_KEY" --slow)
+          fi
+          forge script script/DeployUnichainSepolia.s.sol "${ARGS[@]}"
+
+      - name: Upload deployments.json
+        if: inputs.broadcast
+        uses: actions/upload-artifact@v4
+        with:
+          name: deployments-unichain-sepolia
+          path: frontend/deployments.json
+          retention-days: 90
