@@ -151,7 +151,7 @@ const FRIENDLY = {
   SeriesExpired: "This ETH weight has expired.",
   SeriesStillActive: "This position already has a live ETH weight.",
   InvalidSplit:
-    "Choose a share of the position above 0% and an expiry above 0 days.",
+    "Choose a share of the position above 0% and an expiry above 0.",
   AnnouncementActive:
     "The auction hasn't started yet. Wait until the price begins to fall.",
   AuctionClosed: "This auction is closed: sold out, cancelled or expired.",

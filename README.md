@@ -10,7 +10,7 @@ $$[p_a, p_b]:\qquad (x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC. Positions with the same or different ranges add up as in Uniswap v3, and fees are shared pro rata.
 
-An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Until the token expires, its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees.
+An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Until the token expires (15 minutes by default in the app), its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees.
 
 Details:
 - [docs/DESIGN.md](docs/DESIGN.md): the math, 50/50 ranges, how liquidity is tracked, the architecture, and the verification results.
@@ -41,7 +41,6 @@ If anvil was already running with an older version of the contracts, restart it 
 **On a Mac**, see [docs/SETUP_MAC.md](docs/SETUP_MAC.md). **To put it on the Unichain Sepolia testnet**, follow [docs/DEPLOY_UNICHAIN.md](docs/DEPLOY_UNICHAIN.md). There, visitors connect their own browser wallet.
 
 - **Wallet menu:** switches between Alice, Bob, Carol and Dave. Each has 10,000 ETH and 1,000,000 USDC.
-- **+1h / +1d / +5d:** move the chain's clock forward.
 
 **Left side:**
 - **Add liquidity:** enter an amount and a price range, or tick **50 / 50**. With 50 / 50 on, type either the min or the max price and the other is solved so the deposit is half ETH, half USDC at today's price (for example, at $1 a max of $2 gives a min of $0.6065).

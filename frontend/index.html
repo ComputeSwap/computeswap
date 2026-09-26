@@ -15,11 +15,6 @@
         <button type="button" id="connect" class="small hidden">Connect wallet</button>
         <span id="balances" class="num muted"></span>
         <button type="button" id="faucet" class="ghost small hidden">+10,000 test USDC</button>
-        <span id="clock" class="clock hidden" title="Move the local chain's clock">
-          <button type="button" class="ghost small" data-advance="3600">+1h</button>
-          <button type="button" class="ghost small" data-advance="86400">+1d</button>
-          <button type="button" class="ghost small" data-advance="432000">+5d</button>
-        </span>
       </div>
     </header>
 
@@ -76,7 +71,7 @@
         <p id="split-intro" class="muted"></p>
         <div class="fields">
           <label>Share of position (%)<input id="split-share" type="number" value="100" min="1" max="100" /></label>
-          <label>Expires after (days)<input id="split-days" type="number" step="any" value="5" /></label>
+          <label>Expires after (min)<input id="split-minutes" type="number" step="any" value="15" /></label>
           <label>Price drop (min)<input id="auction-drop" type="number" step="any" value="15" /></label>
         </div>
         <canvas id="payoff-chart" class="chart small"></canvas>

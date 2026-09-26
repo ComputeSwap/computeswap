@@ -157,9 +157,7 @@ async function init() {
       "err",
     );
   }
-  // locally: pick one of anvil's unlocked accounts and move its clock; on a testnet: connect a browser wallet
   $("account").classList.toggle("hidden", !S.local);
-  $("clock").classList.toggle("hidden", !S.local);
   $("connect").classList.toggle("hidden", S.local);
   $("faucet").classList.toggle("hidden", S.local || !S.dep.usdcMintable);
   $("network").textContent = S.local ? "" : S.dep.chainName || "";
@@ -1022,16 +1020,16 @@ async function doSplit() {
   if (!pos) return;
   const units =
     (pos.liquidity * BigInt(Math.round(splitShare() * 10000))) / 10000n;
-  const days = Number($("split-days").value);
+  const minutes = Number($("split-minutes").value);
   const dropMin = Number($("auction-drop").value);
   const startPrice = Number($("auction-start").value);
   const floorPrice = Number($("auction-floor").value);
   if (!(Number($("split-share").value) > 0))
     return toast("Choose a share of the position above 0%.", "err");
-  if (!(days > 0) || !(dropMin > 0)) {
+  if (!(minutes > 0) || !(dropMin > 0)) {
     return toast("Expiry and price drop must both be above 0.", "err");
   }
-  if (dropMin * 60 > days * 86400) {
+  if (dropMin > minutes) {
     return toast(
       "The price drop must finish before the weight expires.",
       "err",
@@ -1043,7 +1041,7 @@ async function doSplit() {
       "err",
     );
   }
-  const duration = BigInt(Math.round(days * 86400));
+  const duration = BigInt(Math.round(minutes * 60));
   $("split-modal").classList.add("hidden");
   const receipt = await send("Split off the ETH weight", () =>
     call(S.c.vault, "split", [pos.id, units, 0, duration]),
@@ -1253,18 +1251,6 @@ function wire() {
     closePop();
     await scheduleRefresh();
   });
-  document.querySelectorAll("[data-advance]").forEach((b) =>
-    b.addEventListener("click", () =>
-      exclusive(async () => {
-        const secs = Number(b.dataset.advance);
-        await S.provider.send("evm_increaseTime", [secs]);
-        await S.provider.send("evm_mine", []);
-        toast(`Clock moved ${b.textContent}`, "ok");
-        await scheduleRefresh();
-      }),
-    ),
-  );
-
   document.querySelectorAll("input[type=number]").forEach((el) => {
     el.min = el.min || "0";
     el.addEventListener("keydown", (e) => {

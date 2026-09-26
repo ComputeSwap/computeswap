@@ -68,11 +68,6 @@ section h2:not(:first-child) {
   gap: 8px 14px;
   align-items: center;
 }
-.clock {
-  display: inline-flex;
-  gap: 4px;
-}
-
 /* ---- layout ---- */
 .cols {
   display: grid;

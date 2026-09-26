@@ -89,7 +89,7 @@ forge script script/DeployLocal.s.sol --rpc-url http://127.0.0.1:8545 --broadcas
 python3 frontend/serve.py
 ```
 
-Then open **http://127.0.0.1:5173**. The deploy script already created the pool; add liquidity to get started. Alice, Bob, Carol and Dave are in the wallet menu, with +1h / +1d / +5d clock buttons.
+Then open **http://127.0.0.1:5173**. The deploy script already created the pool; add liquidity to get started. Alice, Bob, Carol and Dave are in the wallet menu.
 
 ## Later sessions
 

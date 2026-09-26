@@ -170,7 +170,7 @@ Testers need:
 With the default test token, **+10,000 test USDC** mints USDC directly. With Circle's USDC, testers use Circle's faucet instead.
 
 Differences from the local version:
-- **Real time.** There are no clock buttons. Auctions fall, the price oracle settles (about 30 minutes after a big move) and weights expire (5 days) in real time.
+- **Real time.** Auctions fall, the price oracle settles (about 30 minutes after a big move) and weights expire on the schedule you chose when splitting (15 minutes by default in the app).
 - **Explorer links.** Every confirmed transaction's message has a **view** link to it on Uniscan.
 - **Shared pool.** Everyone uses the same pool. Anyone can trade in it and create positions, but every pool of this hook runs the log curve.
 
