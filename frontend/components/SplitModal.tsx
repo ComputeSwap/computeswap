@@ -48,11 +48,11 @@ export default function SplitModal() {
             />
           </label>
           <label>
-            Expires after (min)
+            Expires after (days)
             <DecimalInput
-              value={s.splitMinutes}
-              maxDec={6}
-              onValue={(v) => set({ splitMinutes: v })}
+              value={s.splitDays}
+              maxDec={4}
+              onValue={(v) => set({ splitDays: v })}
             />
           </label>
           <label>

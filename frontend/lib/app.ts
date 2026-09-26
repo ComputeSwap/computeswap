@@ -864,17 +864,19 @@ export async function doSplit() {
   const dep = s.dep as Deployment;
   const units =
     (pos.liquidity * BigInt(Math.round(splitShare() * 10000))) / 10000n;
-  const minutes = parseAmount(s.splitMinutes);
+  const days = parseAmount(s.splitDays);
   const dropMin = parseAmount(s.auctionDrop);
   const startPrice = parseAmount(s.auctionStart);
   const floorPrice = parseAmount(s.auctionFloor);
   if (!(parseAmount(s.splitShare) > 0)) {
     return toast("Choose a share of the position above 0%.", "err");
   }
-  if (!(minutes > 0) || !(dropMin > 0)) {
+  if (!(days > 0) || !(dropMin > 0)) {
     return toast("Expiry and price drop must both be above 0.", "err");
   }
-  if (dropMin >= minutes) {
+  const expirySec = BigInt(Math.round(days * 86400));
+  const dropSecRequested = BigInt(Math.round(dropMin * 60));
+  if (dropSecRequested >= expirySec) {
     return toast(
       "The price drop must finish before the weight expires: use a shorter drop or a longer expiry.",
       "err",
@@ -886,7 +888,7 @@ export async function doSplit() {
       "err",
     );
   }
-  const duration = BigInt(Math.round(minutes * 60));
+  const duration = expirySec;
   set({ splitFor: null });
   const receipt = await send(
     "Split off the ETH weight",

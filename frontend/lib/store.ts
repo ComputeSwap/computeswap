@@ -120,7 +120,7 @@ export type State = {
   // selling the ETH weight
   splitFor: number | null;
   splitShare: string;
-  splitMinutes: string;
+  splitDays: string;
   auctionDrop: string;
   auctionStart: string;
   auctionFloor: string;
@@ -177,8 +177,8 @@ export const useStore = create<State>(() => ({
   pop: null,
   splitFor: null,
   splitShare: "100",
-  splitMinutes: "15",
-  auctionDrop: "10",
+  splitDays: "30",
+  auctionDrop: "15",
   auctionStart: "",
   auctionFloor: "",
   buyPct: {},
