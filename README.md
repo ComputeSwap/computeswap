@@ -1,4 +1,4 @@
-# Log-curve pool
+# Compute Trading Function 
 
 This is an ETH/USDC Uniswap v4 hook built on your trading function, with concentrated liquidity:
 
