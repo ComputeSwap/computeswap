@@ -161,6 +161,8 @@ The page loads ethers.js from the jsdelivr CDN and talks to the chain from the v
 2. Redeploy with `APP_RPC=<that URL>`, or edit `rpc` in `deployments.json`.
 3. Restrict the key to your site's domain. It's visible in the page.
 
+On Alchemy's free tier, `eth_getLogs` is limited to a **10-block** range. The app uses 10-block chunks automatically when not on anvil (override with `logChunkBlocks` in `deployments.json`). The first history backfill from `startBlock` can take a while; incremental updates only scan new blocks.
+
 ## 7. Using it
 
 Testers need:

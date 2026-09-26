@@ -171,6 +171,7 @@ async function init() {
   S.provider = new ethers.JsonRpcProvider(rpc, Number(S.dep.chainId), {
     staticNetwork: true,
     pollingInterval: S.local ? 1000 : 4000,
+    batchMaxCount: S.local ? 100 : 10,
   });
   try {
     await S.provider.getBlockNumber();
@@ -652,17 +653,24 @@ function renderTimers() {
 // ---------------------------------------------------------------------------------------------------------------------
 // history: every operation on the pool, read from the hook's, vault's and auction's events (so it survives reloads)
 // ---------------------------------------------------------------------------------------------------------------------
-const LOG_CHUNK = 10_000; // public RPCs cap the block range of one eth_getLogs
+function logChunkBlocks() {
+  const n = Number(S.dep.logChunkBlocks);
+  if (Number.isFinite(n) && n > 0) return n;
+  return S.local ? 10_000 : 10;
+}
+
 async function loadHistory(latest) {
+  const chunk = logChunkBlocks();
   const from = Math.max(S.historyFrom, Number(S.dep.startBlock || 0));
   if (latest < from) return;
   const ranges = [];
-  for (let b = from; b <= latest; b += LOG_CHUNK)
-    ranges.push([b, Math.min(latest, b + LOG_CHUNK - 1)]);
+  for (let b = from; b <= latest; b += chunk)
+    ranges.push([b, Math.min(latest, b + chunk - 1)]);
+  const parallel = chunk <= 10 ? 1 : 4;
   const logs = [];
-  for (let i = 0; i < ranges.length; i += 4) {
+  for (let i = 0; i < ranges.length; i += parallel) {
     const batch = await Promise.all(
-      ranges.slice(i, i + 4).map(([fromBlock, toBlock]) =>
+      ranges.slice(i, i + parallel).map(([fromBlock, toBlock]) =>
         S.provider.getLogs({
           address: [S.dep.hook, S.dep.vault, S.dep.auction],
           fromBlock,
