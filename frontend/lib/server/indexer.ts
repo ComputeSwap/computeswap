@@ -27,6 +27,11 @@ export type SyncResult = SyncStatus & {
 };
 
 const LEASE_SECONDS = 120;
+/** jsonb comes back parsed from both drivers, but tolerate a string */
+const argsOf = (v: unknown): Record<string, unknown> =>
+  typeof v === "string"
+    ? (JSON.parse(v) as Record<string, unknown>)
+    : (v as Record<string, unknown>);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const json = (v: unknown) =>
   JSON.stringify(v, (_, x) => (typeof x === "bigint" ? x.toString() : x));
@@ -130,7 +135,10 @@ export async function sync(
     latest = (await rpc.getBlockNumber()) - cfg.confirmations;
     const H = await loadContext(cfg);
     const senders = new Map<string, string | null>();
-    while (synced < latest && Date.now() - started < budget) {
+    let chunks = 0;
+    // at least one chunk per call, then as many as the time budget allows
+    while (synced < latest && (chunks === 0 || Date.now() - started < budget)) {
+      chunks++;
       const from = synced + 1;
       const to = Math.min(latest, from + cfg.logChunk - 1);
       const logs = await rpc.getLogs({
@@ -211,6 +219,39 @@ export async function sync(
     blocksIndexed: Math.max(0, synced - from0 + 1),
     eventsIndexed: events,
   };
+}
+
+/**
+ * Recomputes every row's display fields from the stored event arguments, replaying the whole history in order.
+ * Use it after a change to the row logic, or if rows were derived with incomplete context.
+ */
+export async function rederive(
+  cfg = serverConfig(),
+): Promise<{ rows: number }> {
+  const rows = await query(
+    `SELECT block_number, log_index, name, args FROM events WHERE key = $1 ORDER BY block_number, log_index`,
+    [cfg.key],
+  );
+  const H = emptyContext();
+  for (const r of rows) {
+    const row = historyRow(H, r.name as string, argsOf(r.args), cfg.poolId);
+    await query(
+      `UPDATE events SET what = $4, cls = $5, sub = $6, eth = $7, usdc = $8, price = $9
+       WHERE key = $1 AND block_number = $2 AND log_index = $3`,
+      [
+        cfg.key,
+        r.block_number,
+        r.log_index,
+        row?.what ?? null,
+        row?.cls ?? null,
+        row?.sub ?? null,
+        row?.eth ?? null,
+        row?.usdc ?? null,
+        row?.price ?? null,
+      ],
+    );
+  }
+  return { rows: rows.length };
 }
 
 export type HistoryEntry = {

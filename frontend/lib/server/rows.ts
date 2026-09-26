@@ -73,6 +73,7 @@ export function historyRow(
   a: Record<string, unknown>,
   poolId: string,
 ): HistoryRow | null {
+  const pos = (id: unknown) => (id == null ? "" : `#${id}`);
   const range = (id: string | number) =>
     H.ranges[id]
       ? `$${fmtNum(H.ranges[id].pa, 4)}–$${fmtNum(H.ranges[id].pb, 4)}`
@@ -139,7 +140,7 @@ export function historyRow(
     case "AuctionCreated":
       return {
         what: "Open auction",
-        sub: `#${H.seriesPos[String(a.seriesId)]} · starts at`,
+        sub: `${pos(H.seriesPos[String(a.seriesId)])} · starts at`,
         usdc: toUsdc(big(a.startPrice)),
         price: H.price,
       };
@@ -152,7 +153,7 @@ export function historyRow(
         : "";
       return {
         what: "Buy ETH weight",
-        sub: `#${id}${share}`,
+        sub: `${pos(id)}${share}`,
         eth: ethOf(id, amount),
         usdc: toUsdc(big(a.cost)),
         price: H.price,
@@ -162,14 +163,14 @@ export function historyRow(
       const auction = H.auctions[String(a.auctionId)];
       return {
         what: "Cancel auction",
-        sub: auction ? `#${H.seriesPos[auction.seriesId]}` : "",
+        sub: auction ? pos(H.seriesPos[auction.seriesId]) : "",
         price: H.price,
       };
     }
     case "Exercised": // the ETH goes to the weight's holder, the USDC to the position's owner
       return {
         what: "Exercise",
-        sub: `#${H.seriesPos[String(a.seriesId)]}`,
+        sub: pos(H.seriesPos[String(a.seriesId)]),
         eth: toEth(big(a.legAmount)),
         usdc: toUsdc(big(a.otherAmount)),
         price: H.price,
@@ -177,7 +178,7 @@ export function historyRow(
     case "Merged":
       return {
         what: "Merge weight",
-        sub: `#${H.seriesPos[String(a.seriesId)]}`,
+        sub: pos(H.seriesPos[String(a.seriesId)]),
         price: H.price,
       };
     default:
