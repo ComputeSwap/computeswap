@@ -6,7 +6,7 @@ $$xe^{y} = e $$
 
 We can concentrate the liquidity within a range using the following parameters a and b:
 
-$$[p_a, p_b]:\qquad (x + p_b^{-1})\e^{\,y + 1 + \ln p_a} = e$$
+$$[p_a, p_b]:\qquad (x + p_b^{-1})e^{\y + 1 + \ln p_a} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC.
 
