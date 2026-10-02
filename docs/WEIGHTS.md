@@ -93,10 +93,10 @@ The lifecycle that the UI walks through:
 LP: add liquidity ──> popup: split the ETH weight (share, days) ──> Dutch auction (1-block announce, drop, start, floor)
 buyer: buy (all or part) ──> ... ETH falls ... ──> exercise: vault withdraws that liquidity at today's price
                                                      buyer <- ETH leg      LP (NFT owner) <- USDC leg + fees
-             or: nothing happens for 5 days ──> weights lapse, lock lifts ──> LP withdraws everything
+             or: nothing happens before expiry ──> weights lapse, lock lifts ──> LP withdraws everything
 ```
 
-Only one series per position can be live at a time. Splitting again is allowed once it has expired or been fully merged or exercised.
+Only one series per position can be live at a time. Splitting again is allowed once it has expired or been fully merged or exercised. The demo UI defaults to a 30-day expiry and a 15-minute Dutch price drop; `test/Weights.t.sol` often uses 5 days for shorter test runs.
 
 ## 5. Safety
 
@@ -117,7 +117,7 @@ Not audited.
 ## 6. Verified
 
 `test/Weights.t.sol` has 7 tests:
-- your example (weight bought after 6 h of a Dutch auction; ETH pushed to $0.79; exercise refused right after the move, allowed an hour later; exact amounts);
+- the whitepaper's example (weight bought after 6 h of a Dutch auction; ETH pushed to $0.79; exercise refused right after the move, allowed an hour later; exact amounts);
 - expiry;
 - cancel and merge;
 - flash manipulation;

@@ -59,6 +59,7 @@ contract ConcentratedCurveHook is IHooks, IUnlockCallback {
     error SlippageExceeded();
     error NativeValueNotAccepted();
     error InsufficientNativeValue();
+    error InsufficientBalance();
     error InsufficientPoolReserves();
 
     event PoolInitialized(PoolId indexed id, ICurve indexed curve, uint160 sqrtPriceX96, int24 tick, bool mirrorPrice);
@@ -500,6 +501,7 @@ contract ConcentratedCurveHook is IHooks, IUnlockCallback {
                 if (owed > data.nativeValue) revert InsufficientNativeValue();
                 poolManager.settle{value: owed}();
             } else {
+                if (currency.balanceOf(data.sender) < owed) revert InsufficientBalance();
                 poolManager.sync(currency);
                 SafeTransferLib.safeTransferFrom(Currency.unwrap(currency), data.sender, address(poolManager), owed);
                 poolManager.settle();

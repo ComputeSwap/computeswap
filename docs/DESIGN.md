@@ -1,6 +1,6 @@
 # Concentrated liquidity on the log curve: design
 
-A Uniswap v4 hook that runs your trading function with Uniswap-v3-style concentrated liquidity. LPs pick a price range. Positions with the same or different ranges add up correctly, and fees are shared pro rata. The curve is
+A Uniswap v4 hook that runs the log-curve trading function with Uniswap-v3-style concentrated liquidity. LPs pick a price range. Positions with the same or different ranges add up correctly, and fees are shared pro rata. The curve is
 
 $$(x + p_b^{-1})\,e^{\,y + 1 + \ln p_a} = e \qquad\Longleftrightarrow\qquad y = \ln\!\frac{1}{x + p_b^{-1}} - \ln p_a$$
 
@@ -30,7 +30,7 @@ At $P = p_b$ the position is all USDC; at $P = p_a$ it is all ETH. This is v3's 
 
 The unit form $x e^{y} = 1$, lifted to liquidity $L$ and offset to $[p_a, p_b]$:
 
-$$\Big(x + \frac{L}{p_b}\Big)\, e^{\,y/L + \ln p_a} = L \qquad (\text{with } L = 1 \text{ this is your } (x+p_b^{-1})e^{y+1+\ln p_a} = e)$$
+$$\Big(x + \frac{L}{p_b}\Big)\, e^{\,y/L + \ln p_a} = L \qquad (\text{with } L = 1 \text{ this is the log curve } (x+p_b^{-1})e^{y+1+\ln p_a} = e)$$
 
 | | |
 |---|---|
@@ -61,7 +61,7 @@ $$p_a = P\,e^{P/p_b - 1} \qquad\qquad p_b = \frac{P}{1 + \ln(p_a/P)} \quad (\tex
 
 For example, at $P = 1$: $p_b = 2 \Rightarrow p_a = e^{-1/2} = 0.6065$, and $p_b = 4 \Rightarrow p_a = e^{-3/4} = 0.4724$. No 50/50 range reaches below $P/e$, and none is symmetric in log-price: $p_b/P$ is always larger than $P/p_a$.
 
-`frontend/curve.js` has `lambertW` (Halley's method), `fiftyFiftyPrice`, `lowerFor5050` and `upperFor5050`. The add-liquidity form solves the bound you didn't type from the other bound *after it snaps to a tick*, so the deposit lands within a few hundredths of a percent of 50/50.
+`frontend/lib/curve.js` has `lambertW` (Halley's method), `fiftyFiftyPrice`, `lowerFor5050` and `upperFor5050`. The add-liquidity form solves the bound you didn't type from the other bound *after it snaps to a tick*, so the deposit lands within a few hundredths of a percent of 50/50.
 
 ---
 
@@ -124,7 +124,7 @@ active L:      2.5   |   5.5    |   3   |    7     |  3  |    6    |  3   |  0  
 - **Reserves are accounted per pool** (`reserves[poolId]`) with checked math, so a pool can never pay out another pool's tokens.
 - **Swaps are all-or-nothing.** Reaching `sqrtPriceLimitX96`, or running out of liquidity, reverts, so the limit acts as a slippage bound.
 - **Price mirroring is optional** (`mirrorPrice`). After each swap the hook makes a 1-wei swap on v4's empty curve to walk v4's slot0 to the curve price. Quoters and UIs reading `getSlot0` then see the real price. It costs about 25k gas.
-- **Licensing.** The project is BUSL-1.1, like Uniswap v4-core (see `LICENSE`; the earlier MIT license is kept in `license-mit/`). From v4-core, the hook uses only the MIT libraries (`TickMath`, `TickBitmap`, `SqrtPriceMath`, `FullMath`, types). `CurvePool` is an independent implementation of the whitepaper algorithms, not a copy of v4's BUSL `Pool.sol`. The BUSL PoolManager is used only in tests and the local deployment.
+- **Licensing.** See [License](../README.md#license) in the README. From v4-core, the hook uses only the MIT libraries (`TickMath`, `TickBitmap`, `SqrtPriceMath`, `FullMath`, types). `CurvePool` is an independent implementation of the concentrated-liquidity tick and fee-growth algorithms from the [Uniswap v3 whitepaper](https://uniswap.org/whitepaper-v3.pdf), not a copy of v4's BUSL `Pool.sol`. The log-curve trading function itself comes from Gustav Genberg's whitepaper (see README). The BUSL PoolManager is used only in tests and the local deployment.
 
 ### Swap sequence
 

@@ -3,7 +3,7 @@
 Two things go online:
 
 1. **The contracts.** A Foundry script deploys them to Unichain Sepolia (chain ID 1301). Uniswap already runs v4 there, so you don't deploy Uniswap itself. The script deploys:
-   - your curve (`LogCurve`);
+   - the log curve (`LogCurve`);
    - the hook, at an address whose last bits carry its permissions;
    - the position vault, which creates the weight token;
    - the Dutch auction;
@@ -184,7 +184,7 @@ Testers need:
 With the default test token, **+10,000 test USDC** mints USDC directly. With Circle's USDC, testers use Circle's faucet instead.
 
 Differences from the local version:
-- **Real time.** Auctions fall, the price oracle settles (about 30 minutes after a big move) and weights expire on the schedule you chose when splitting (15 minutes by default in the app).
+- **Real time.** Auctions fall, the price oracle settles (about 30 minutes after a big move), and weights expire on the duration you chose when splitting (the demo UI defaults to 30 days; the 15-minute default is only the Dutch auction price drop).
 - **Explorer links.** Every confirmed transaction's message has a **view** link to it on Uniscan.
 - **Shared pool.** Everyone uses the same pool. Anyone can trade in it and create positions, but every pool of this hook runs the log curve.
 

@@ -1,6 +1,10 @@
 # Compute Trading Function
 
-This is a Uniswap v4 AMM hook based on the following trading function:
+Uniswap v4 hook and demo app for the **log curve** trading function from [Gustav Genberg](https://github.com/gustavgenberg)'s whitepaper on concentrated liquidity (publication forthcoming; the README will link the paper when it is out).
+
+**Live demo:** [frontend-red-alpha-73.vercel.app](https://frontend-red-alpha-73.vercel.app) (Unichain Sepolia). A second deployment on Ethereum Sepolia as a [1inch Aqua](https://github.com/1inch/aqua) app lives in [ComputeSwap/computeswap-aqua](https://github.com/ComputeSwap/computeswap-aqua) with demo [computeswap-aqua.vercel.app](https://computeswap-aqua.vercel.app). Contract addresses and explorers: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md).
+
+The hook implements:
 
 $$xe^{y} = e $$
 
@@ -10,7 +14,7 @@ $$[p_a, p_b]:\qquad (x + p_b^{-1})e^{(1+y+\ln p_a)} = e$$
 
 A position with liquidity $L$ holds $x = L(1/P - 1/p_b)$ ETH and $y = L\ln(P/p_a)$ USDC.
 
-An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Until the token expires (15 minutes by default in the app), its holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees. The **ETH weight** payoff resembles a butterfly spread (put option with a cap on it), we call it Decomposed Compute Position (DCP).
+An LP can also split a position's **ETH weight** as a token and sell it in a Dutch auction. Expiry is set at split time in the contract (`WeightVault.split`); there is no fixed on-chain default. The demo app pre-fills **30 days** for weight expiry and **15 minutes** for how long the auction price falls from start to floor (not the weight lifetime). Until expiry, the holder can make the vault withdraw that liquidity at the current price and take the ETH. The LP keeps the USDC and the fees. The **ETH weight** payoff resembles a butterfly spread (put option with a cap on it), we call it Decomposed Compute Position (DCP).
 
 <img width="1032" height="596" alt="Screenshot 2026-09-25 at 23 30 19" src="https://github.com/user-attachments/assets/f522947b-f34c-45c8-a6fe-b70f2ede30ef" />
 
@@ -57,7 +61,7 @@ The deploy script creates an ETH/USDC pool (default start price $1; override wit
 ```
 src/
   ConcentratedCurveHook.sol        the v4 hook: pools, positions, swaps, fees, moving-average oracle
-  curves/LogCurve.sol              your curve (ICurve), with libraries/LogCurveMath.sol
+  curves/LogCurve.sol              the log curve (ICurve), with libraries/LogCurveMath.sol
   libraries/                       ticks, fee growth and the swap loop (CurvePool, CurveSwapMath, ...)
   weights/                         WeightVault (ERC-721), WeightToken (ERC-6909), WeightAuction
 script/DeployLocal.s.sol           local deployment (anvil) for the app
@@ -77,4 +81,13 @@ forge test
 ```bash
 forge test --match-contract "UserScenario|WeightsTest" -vv
 ```
+
+## License
+
+All Solidity in `src/`, `test/`, and `script/` is **BUSL-1.1** ([`LICENSE`](LICENSE)): non-production use now; **MIT** from the Change Date (2030-09-26) unless you obtain a commercial license from the licensor. That matches the Uniswap v4-core pattern (no Additional Use Grant).
+
+The [`license-mit/`](license-mit/) folder is not a second public license choice. It stores the text of an earlier MIT release and a maintainer script to swap SPDX headers if the project deliberately re-licenses. **Earlier commits under MIT may still be usable under MIT for anyone who obtained a copy under those terms**; what is protectable in a fork or competitor scenario is a question for counsel, not this repo.
+
+Vendored code under `lib/` keeps its own licenses (MIT, BUSL, AGPL, etc.).
+
 This prototype has **not been audited**.
