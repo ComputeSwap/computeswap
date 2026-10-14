@@ -1,6 +1,6 @@
 # Compute Trading Function
 
-Uniswap v4 hook and demo app for the **log curve** trading function from [Gustav Genberg](https://github.com/gustavgenberg)'s whitepaper on concentrated liquidity (publication forthcoming; the README will link the paper when it is out).
+Uniswap v4 hook and demo app for the **log curve** trading function whitepaper on concentrated liquidity (publication forthcoming; the README will link the paper when it is out).
 
 **Live demo:** [frontend-red-alpha-73.vercel.app](https://frontend-red-alpha-73.vercel.app) (Unichain Sepolia). A second deployment on Ethereum Sepolia as a [1inch Aqua](https://github.com/1inch/aqua) app lives in [ComputeSwap/computeswap-aqua](https://github.com/ComputeSwap/computeswap-aqua) with demo [computeswap-aqua.vercel.app](https://computeswap-aqua.vercel.app). Contract addresses and explorers: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md).
 
