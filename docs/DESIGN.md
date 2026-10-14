@@ -124,7 +124,7 @@ active L:      2.5   |   5.5    |   3   |    7     |  3  |    6    |  3   |  0  
 - **Reserves are accounted per pool** (`reserves[poolId]`) with checked math, so a pool can never pay out another pool's tokens.
 - **Swaps are all-or-nothing.** Reaching `sqrtPriceLimitX96`, or running out of liquidity, reverts, so the limit acts as a slippage bound.
 - **Price mirroring is optional** (`mirrorPrice`). After each swap the hook makes a 1-wei swap on v4's empty curve to walk v4's slot0 to the curve price. Quoters and UIs reading `getSlot0` then see the real price. It costs about 25k gas.
-- **Licensing.** See [License](../README.md#license) in the README. From v4-core, the hook uses only the MIT libraries (`TickMath`, `TickBitmap`, `SqrtPriceMath`, `FullMath`, types). `CurvePool` is an independent implementation of the concentrated-liquidity tick and fee-growth algorithms from the [Uniswap v3 whitepaper](https://uniswap.org/whitepaper-v3.pdf), not a copy of v4's BUSL `Pool.sol`. The log-curve trading function itself comes from Gustav Genberg's whitepaper (see README). The BUSL PoolManager is used only in tests and the local deployment.
+- **Dependencies.** From v4-core, the hook uses only the MIT libraries (`TickMath`, `TickBitmap`, `SqrtPriceMath`, `FullMath`, types). `CurvePool` is an independent implementation of the concentrated-liquidity tick and fee-growth algorithms from the [Uniswap v3 whitepaper](https://uniswap.org/whitepaper-v3.pdf), not a copy of v4's BUSL `Pool.sol`. The log-curve trading function itself comes from Gustav Genberg's whitepaper (see README). The BUSL PoolManager is used only in tests and the local deployment.
 
 ### Swap sequence
 

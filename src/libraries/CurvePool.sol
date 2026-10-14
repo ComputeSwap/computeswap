@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 import {TickMath} from "@uniswap/v4-core/src/libraries/TickMath.sol";

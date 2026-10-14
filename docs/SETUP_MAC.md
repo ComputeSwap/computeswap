@@ -9,8 +9,8 @@ Clone or copy the repo to a normal folder on disk (for example `~/Projects/Compu
 You should have at least:
 
 ```
-LICENSE  README.md  foundry.toml  remappings.txt
-docs/  frontend/  lib/  license-mit/  python/  script/  src/  test/
+README.md  foundry.toml  remappings.txt
+docs/  frontend/  lib/  python/  script/  src/  test/
 ```
 
 `lib/` holds vendored Uniswap v4, solady, forge-std, and solmate. You do not need committed `out/`, `cache/`, or `broadcast/`; Foundry recreates them.

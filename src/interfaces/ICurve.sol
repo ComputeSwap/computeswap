@@ -1,4 +1,3 @@
-// SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.24;
 
 /// @title ICurve - a pluggable trading function for concentrated liquidity

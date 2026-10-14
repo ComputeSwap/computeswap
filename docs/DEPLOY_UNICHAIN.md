@@ -190,4 +190,4 @@ Differences from the local version:
 
 ## Not for mainnet
 
-These contracts have not been audited. The license is BUSL-1.1 (see `LICENSE`): production use needs the licensor's permission until the change date.
+These contracts have not been audited.

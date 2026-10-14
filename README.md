@@ -2,7 +2,7 @@
 
 Uniswap v4 hook and demo app for the **log curve** trading function whitepaper by Vasily Tolstikov on concentrated liquidity (publication forthcoming; the README will link the paper when it is out).
 
-**Live demo:** [[compute-swap.vercel.app](https://compute-swap.vercel.app)](https://compute-swap.vercel.app) (Unichain Sepolia). Contract addresses and explorers: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md).
+**Live demo:** [compute-swap.vercel.app](https://compute-swap.vercel.app) (Unichain Sepolia). Contract addresses and explorers: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md).
 
 The hook implements:
 
@@ -81,13 +81,5 @@ forge test
 ```bash
 forge test --match-contract "UserScenario|WeightsTest" -vv
 ```
-
-## License
-
-All Solidity in `src/`, `test/`, and `script/` is **BUSL-1.1** ([`LICENSE`](LICENSE)): non-production use now; **MIT** from the Change Date (2030-09-26) unless you obtain a commercial license from the licensor. That matches the Uniswap v4-core pattern (no Additional Use Grant).
-
-The [`license-mit/`](license-mit/) folder is not a second public license choice. It stores the text of an earlier MIT release and a maintainer script to swap SPDX headers if the project deliberately re-licenses. **Earlier commits under MIT may still be usable under MIT for anyone who obtained a copy under those terms**; what is protectable in a fork or competitor scenario is a question for counsel, not this repo.
-
-Vendored code under `lib/` keeps its own licenses (MIT, BUSL, AGPL, etc.).
 
 This prototype has **not been audited**.

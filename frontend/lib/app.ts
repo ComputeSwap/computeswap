@@ -495,8 +495,7 @@ function enqueueTx<T>(fn: () => Promise<T>): Promise<T> {
 async function pendingNonce(
   runner: ethers.ContractRunner,
 ): Promise<number | undefined> {
-  const provider =
-    "provider" in runner ? runner.provider : null;
+  const provider = "provider" in runner ? runner.provider : null;
   if (!("getAddress" in runner) || !provider) {
     return undefined;
   }
@@ -552,8 +551,7 @@ export async function call(
 ): Promise<TxResponse> {
   const runner = contract.runner as ethers.ContractRunner | null;
   const nonce = runner ? await pendingNonce(runner) : undefined;
-  const base =
-    nonce === undefined ? overrides : { ...overrides, nonce };
+  const base = nonce === undefined ? overrides : { ...overrides, nonce };
   const estimate = (await contract[method].estimateGas(
     ...args,
     base,
