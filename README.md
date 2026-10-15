@@ -2,7 +2,7 @@
 
 Uniswap v4 hook and demo app for the **log curve** trading function whitepaper by Vasily Tolstikov on concentrated liquidity (publication forthcoming; the README will link the paper when it is out).
 
-**Live demo:** [compute-swap.vercel.app](https://compute-swap.vercel.app) (Unichain Sepolia). Contract addresses and explorers: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md).
+**Live demo:** [computeswap.vercel.app](https://computeswap.vercel.app) (Unichain Sepolia). Contract addresses and explorers: [docs/DEPLOYMENTS.md](docs/DEPLOYMENTS.md).
 
 The hook implements:
 

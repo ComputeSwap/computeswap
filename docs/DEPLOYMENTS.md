@@ -4,7 +4,7 @@ Live demos:
 
 | Chain | App | Repository |
 |---|---|---|
-| Unichain Sepolia (Uniswap v4 hook) | [frontend-red-alpha-73.vercel.app](https://frontend-red-alpha-73.vercel.app) | this repo |
+| Unichain Sepolia (Uniswap v4 hook) | [computeswap.vercel.app](https://computeswap.vercel.app) | this repo |
 | Ethereum Sepolia (1inch Aqua app) | [computeswap-aqua.vercel.app](https://computeswap-aqua.vercel.app) | [ComputeSwap/computeswap-aqua](https://github.com/ComputeSwap/computeswap-aqua) |
 
 Deploy procedures: [DEPLOY_UNICHAIN.md](DEPLOY_UNICHAIN.md) (v4 hook), [computeswap-aqua/docs/DEPLOY_SEPOLIA.md](https://github.com/ComputeSwap/computeswap-aqua/blob/main/docs/DEPLOY_SEPOLIA.md) (Aqua).
